@@ -3,13 +3,17 @@ local bass = require("plugin.bass")
 widget.setTheme("widget_theme_android_holo_dark")
 
 local resourcePath = system.pathForFile("", system.ResourceDirectory)
-local soundFileName = "thunder.wav"
-local streamFileName = "Gentle-Rain.mp3"
-local loadSoundButton = nil
-local loadStreamButton = nil
-local soundChannel = 0
-local streamChannel = 0
-local channel = 0
+
+local musicSamples = {
+	{channel = 0, fileName = "Thunder.wav", fileType = "wav"},
+	{channel = 0, fileName = "Gentle-Rain.mp3", fileType = "mp3"},
+	{channel = 0, fileName = "Streets of Rage - The Street of Rage.vgz", fileType = "vgz"},
+	{channel = 0, fileName = "Sample_BeeMoved_96kHz24bit.flac", fileType = "flac"},
+	{channel = 0, fileName = "Sample_BeeMoved_48kHz16bit.m4a", fileType = "aac"}
+}
+
+local currentAudioIndex = 1
+local volumeSlider = nil
 
 local function onAudioComplete(event)
 	if (type(event) == "table") then
@@ -22,77 +26,67 @@ end
 local typeSegmentedControl =
 	widget.newSegmentedControl(
 	{
-		segmentWidth = 150,
-		segments = {"Sound", "Stream"},
+		segmentWidth = 50,
+		segments = {
+			musicSamples[1].fileType,
+			musicSamples[2].fileType,
+			musicSamples[3].fileType,
+			musicSamples[4].fileType,
+			musicSamples[5].fileType
+		},
 		defaultSegment = 1,
 		onPress = function(event)
-			local segmentNumber = event.target.segmentNumber
-
-			loadSoundButton.isVisible = (segmentNumber == 1)
-			loadStreamButton.isVisible = (segmentNumber == 2)
-			channel = (segmentNumber == 1) and soundChannel or streamChannel
+			currentAudioIndex = event.target.segmentNumber
+			local currentVolume = bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
+			volumeSlider:setValue(currentVolume * 100)
 		end
 	}
 )
 typeSegmentedControl.x = display.contentCenterX
 typeSegmentedControl.y = 50
 
-loadSoundButton =
+local loadButton =
 	widget.newButton(
 	{
-		label = "Load Sound",
+		label = "Load",
 		onPress = function(event)
-			soundChannel = bass.loadSound(soundFileName, resourcePath)
-			channel = soundChannel
-			print("audio duration: ", bass.getDuration(channel))
-		end
-	}
-)
-loadSoundButton.x = display.contentCenterX
-loadSoundButton.y = typeSegmentedControl.y + typeSegmentedControl.contentHeight + loadSoundButton.contentHeight
+			musicSamples[currentAudioIndex].channel = bass.load(musicSamples[currentAudioIndex].fileName, resourcePath)
+			local currentVolume = bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
+			volumeSlider:setValue(currentVolume * 100)
 
-loadStreamButton =
-	widget.newButton(
-	{
-		label = "Load Stream",
-		onPress = function(event)
-			streamChannel = bass.loadStream(streamFileName, resourcePath)
-			channel = streamChannel
-
-			for k, v in pairs(bass.getTags(streamChannel)) do
+			for k, v in pairs(bass.getTags(musicSamples[currentAudioIndex].channel)) do
 				print(k, v)
 			end
 
-			print("audio duration: ", bass.getDuration(channel))
+			print("audio duration: ", bass.getDuration(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
-loadStreamButton.x = display.contentCenterX
-loadStreamButton.y = typeSegmentedControl.y + typeSegmentedControl.contentHeight + loadStreamButton.contentHeight
-loadStreamButton.isVisible = false
+loadButton.x = display.contentCenterX
+loadButton.y = typeSegmentedControl.y + typeSegmentedControl.contentHeight + loadButton.contentHeight
 
 local playButton =
 	widget.newButton(
 	{
 		label = "Play",
 		onPress = function(event)
-			bass.play(channel, {onComplete = onAudioComplete})
-			bass.fadeOut(channel, 5000)
+			bass.play(musicSamples[currentAudioIndex].channel, {onComplete = onAudioComplete})
+			--bass.fadeOut(channel, 5000)
 
-			print("is channel playing?: ", bass.isChannelPlaying(channel))
+			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
 playButton.x = display.contentCenterX
-playButton.y = loadStreamButton.y + loadStreamButton.contentHeight
+playButton.y = loadButton.y + loadButton.contentHeight
 
 local pauseButton =
 	widget.newButton(
 	{
 		label = "Pause",
 		onPress = function(event)
-			bass.pause(channel)
-			print("is channel playing?: ", bass.isChannelPlaying(channel))
+			bass.pause(musicSamples[currentAudioIndex].channel)
+			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
@@ -104,8 +98,8 @@ local resumeButton =
 	{
 		label = "Resume",
 		onPress = function(event)
-			bass.resume(channel)
-			print("is channel playing?: ", bass.isChannelPlaying(channel))
+			bass.resume(musicSamples[currentAudioIndex].channel)
+			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
@@ -117,8 +111,8 @@ local stopButton =
 	{
 		label = "Stop",
 		onPress = function(event)
-			bass.stop(channel)
-			print("is channel playing?: ", bass.isChannelPlaying(channel))
+			bass.stop(musicSamples[currentAudioIndex].channel)
+			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
@@ -130,7 +124,7 @@ local rewindButton =
 	{
 		label = "Rewind",
 		onPress = function(event)
-			bass.rewind(channel)
+			bass.rewind(musicSamples[currentAudioIndex].channel)
 		end
 	}
 )
@@ -143,7 +137,7 @@ local seekButton =
 		label = "Seek To Midway",
 		onPress = function(event)
 			print("seeking")
-			bass.seek(channel, bass.getDuration(channel) / 2)
+			bass.seek(musicSamples[currentAudioIndex].channel, bass.getDuration(musicSamples[currentAudioIndex].channel) / 2)
 		end
 	}
 )
@@ -157,15 +151,15 @@ local toggleLoopSwitch =
 		onPress = function(event)
 			local target = event.target
 
-			bass.update(channel, {loop = target.isOn})
-			print("is channel playing?: ", bass.isChannelPlaying(channel))
+			bass.update(musicSamples[currentAudioIndex].channel, {loop = target.isOn})
+			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}
 )
 toggleLoopSwitch.x = display.contentCenterX
 toggleLoopSwitch.y = seekButton.y + seekButton.contentHeight
 
-local slider =
+volumeSlider =
 	widget.newSlider(
 	{
 		x = display.contentCenterX,
@@ -177,11 +171,11 @@ local slider =
 			--bass.setVolume(value / 100)
 			--print("global vol:", bass.getVolume())
 
-			bass.setVolume(value / 100, {channel = channel})
+			bass.setVolume(value / 100, {channel = musicSamples[currentAudioIndex].channel})
 			--print("channel vol:", bass.getVolume({channel = channel}))
 		end
 	}
 )
-slider.y = toggleLoopSwitch.y + toggleLoopSwitch.contentHeight
+volumeSlider.y = toggleLoopSwitch.y + toggleLoopSwitch.contentHeight
 
 --bass.setVolume(1.0)

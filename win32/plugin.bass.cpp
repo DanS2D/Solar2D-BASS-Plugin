@@ -54,8 +54,7 @@ namespace Corona
 		static int isChannelActive(lua_State* L);
 		static int isChannelPaused(lua_State* L);
 		static int isChannelPlaying(lua_State* L);
-		static int loadStream(lua_State* L);
-		static int loadSound(lua_State* L);
+		static int load(lua_State* L);
 		static int pause(lua_State* L);
 		static int play(lua_State* L);
 		static int resume(lua_State* L);
@@ -101,8 +100,7 @@ namespace Corona
 				{ "isChannelActive", isChannelActive },
 				{ "isChannelPaused", isChannelPaused },
 				{ "isChannelPlaying", isChannelPlaying },
-				{ "loadSound", loadSound },
-				{ "loadStream", loadStream },
+				{ "load", load },
 				{ "pause", pause },
 				{ "play", play },
 				{ "resume", resume },
@@ -133,6 +131,7 @@ namespace Corona
 			delete library;
 		}
 
+		BASS_PluginFree(0);
 		BASS_Free();
 
 		return 0;
@@ -163,6 +162,16 @@ namespace Corona
 		{
 			printf("ERROR: plugin.bass - Can't initialize device\n");
 		}
+
+#ifdef _WIN32
+		BASS_PluginLoad("bass_ac3.dll", 0);
+		BASS_PluginLoad("bass_ape.dll", 0);
+		BASS_PluginLoad("bass_mpc.dll", 0);
+		BASS_PluginLoad("bass_spx.dll", 0);
+		BASS_PluginLoad("bassflac.dll", 0);
+		BASS_PluginLoad("bassopus.dll", 0);
+		BASS_PluginLoad("basszxtune.dll", 0);
+#endif
 
 		return 1;
 	}
@@ -399,48 +408,7 @@ namespace Corona
 		return 1;
 	}
 
-	int BassLibrary::loadSound(lua_State* L)
-	{
-		const char* fileName;
-		const char* filePath;
-
-		if (lua_isstring(L, 1))
-		{
-			fileName = lua_tostring(L, 1);
-		}
-		else
-		{
-			CoronaLuaError(L, "bass.loadSound() filename (string) expected, got: %s", lua_typename(L, 1));
-		}
-
-		if (lua_isstring(L, 2))
-		{
-			filePath = lua_tostring(L, 2);
-		}
-		else
-		{
-			CoronaLuaError(L, "bass.loadSound() filePath (string) expected, got: %s", lua_typename(L, 2));
-		}
-
-		std::string fullPath = filePath;
-		fullPath.append("\\");
-		fullPath.append(fileName);
-
-		if (DWORD sample = BASS_SampleLoad(FALSE, fullPath.c_str(), 0, 0, 1, 0))
-		{
-			DWORD channel = BASS_SampleGetChannel(sample, TRUE);
-			lua_pushnumber(L, channel);
-			return 1;
-		}
-		else
-		{
-			CoronaLuaError(L, "bass.loadSound() couldn't create sound for file: %s", fullPath.c_str());
-		}
-
-		return 0;
-	}
-
-	int BassLibrary::loadStream(lua_State* L)
+	int BassLibrary::load(lua_State* L)
 	{
 		DWORD channel;
 		const char* fileName;
@@ -452,7 +420,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.loadStream() filename (string) expected, got: %s", lua_typename(L, 1));
+			CoronaLuaError(L, "bass.load() filename (string) expected, got: %s", lua_typename(L, 1));
 		}
 
 		if (lua_isstring(L, 2))
@@ -461,21 +429,21 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.loadStream() filePath (string) expected, got: %s", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.load() filePath (string) expected, got: %s", lua_typename(L, 2));
 		}
 
 		std::string fullPath = filePath;
 		fullPath.append("\\");
 		fullPath.append(fileName);
 
-		if (channel = BASS_StreamCreateFile(FALSE, fullPath.c_str(), 0, 0, 0))
+		if (channel = BASS_StreamCreateFile(FALSE, fullPath.c_str(), 0, 0, BASS_ASYNCFILE))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.loadStream() couldn't create stream for file: %s", fullPath.c_str());
+			CoronaLuaError(L, "bass.load() couldn't create stream for file: %s", fullPath.c_str());
 		}
 
 		return 0;

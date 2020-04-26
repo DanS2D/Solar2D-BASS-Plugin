@@ -11,14 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bass\bass.h" />
-    <ClInclude Include="bass\tags.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="bass\bass.lib" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="plugin.bass.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bass\headers\bass.h" />
+    <ClInclude Include="bass\headers\tags.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{79F0CACC-457B-4A25-BC54-81277688C361}</ProjectGuid>
@@ -59,8 +56,8 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(Configuration)\</OutDir>
     <TargetName>plugin_bass</TargetName>
-    <LibraryPath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\bassPlugin\win32\bass;$(LibraryPath)</LibraryPath>
-    <IncludePath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\bassPlugin\win32\bass;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\win32\bass\libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\win32\bass\headers;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <PreBuildEvent />
@@ -96,7 +93,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(CORONA_ROOT)\Corona\win\lib\*.lib;bass.lib;tags.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(CORONA_ROOT)\Corona\win\lib\*.lib;$(ProjectDir)bass\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -109,11 +106,8 @@
     </Link>
     <PostBuildEvent />
     <PostBuildEvent>
-      <Command>set PLUGINS=$(appdata)\Corona Labs\Corona Simulator\Plugins\
-copy "$(OutDir)$(TargetName).dll" "%PLUGINS%$(TargetName).dll"
-copy "$(ProjectDir)bass\bass.dll" "$(appdata)\Corona Labs\Corona Simulator\Plugins\bass.dll"
-copy "$(ProjectDir)bass\tags.dll" "$(appdata)\Corona Labs\Corona Simulator\Plugins\tags.dll"
-</Command>
+      <Command>copy "$(OutDir)$(TargetName).dll" "$(appdata)\Corona Labs\Corona Simulator\Plugins\$(TargetName).dll"
+xcopy /E /Y "$(ProjectDir)bass\dlls" "$(appdata)\Corona Labs\Corona Simulator\Plugins\"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>

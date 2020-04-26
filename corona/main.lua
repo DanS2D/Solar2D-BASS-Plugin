@@ -5,14 +5,15 @@ widget.setTheme("widget_theme_android_holo_dark")
 local resourcePath = system.pathForFile("", system.ResourceDirectory)
 
 local musicSamples = {
-	{channel = 0, fileName = "Thunder.wav", fileType = "wav"},
-	{channel = 0, fileName = "Gentle-Rain.mp3", fileType = "mp3"},
-	{channel = 0, fileName = "Streets of Rage - The Street of Rage.vgz", fileType = "vgz"},
-	{channel = 0, fileName = "Sample_BeeMoved_96kHz24bit.flac", fileType = "flac"},
-	{channel = 0, fileName = "Sample_BeeMoved_48kHz16bit.m4a", fileType = "aac"}
+	{channel = 0, fileName = "Thunder.wav", loop = false, fileType = "wav"},
+	{channel = 0, fileName = "Gentle-Rain.mp3", loop = false, fileType = "mp3"},
+	{channel = 0, fileName = "Streets of Rage - The Street of Rage.vgz", loop = false, fileType = "vgz"},
+	{channel = 0, fileName = "Sample_BeeMoved_96kHz24bit.flac", loop = false, fileType = "flac"},
+	{channel = 0, fileName = "Sample_BeeMoved_48kHz16bit.m4a", loop = false, fileType = "aac"}
 }
 
 local currentAudioIndex = 1
+local toggleLoopSwitch = nil
 local volumeSlider = nil
 
 local function onAudioComplete(event)
@@ -39,6 +40,7 @@ local typeSegmentedControl =
 			currentAudioIndex = event.target.segmentNumber
 			local currentVolume = bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
 			volumeSlider:setValue(currentVolume * 100)
+			toggleLoopSwitch:setState({isOn = musicSamples[currentAudioIndex].loop, isAnimated = false})
 		end
 	}
 )
@@ -144,7 +146,7 @@ local seekButton =
 seekButton.x = display.contentCenterX
 seekButton.y = rewindButton.y + rewindButton.contentHeight
 
-local toggleLoopSwitch =
+toggleLoopSwitch =
 	widget.newSwitch(
 	{
 		style = "checkbox",
@@ -152,6 +154,7 @@ local toggleLoopSwitch =
 			local target = event.target
 
 			bass.update(musicSamples[currentAudioIndex].channel, {loop = target.isOn})
+			musicSamples[currentAudioIndex].loop = target.isOn
 			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
 	}

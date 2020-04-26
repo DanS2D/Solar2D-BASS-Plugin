@@ -58,6 +58,7 @@ namespace Corona
 		static int play(lua_State* L);
 		static int resume(lua_State* L);
 		static int rewind(lua_State* L);
+		static int seek(lua_State* L);
 		static int setVolume(lua_State* L);
 		static int stop(lua_State* L);
 		static int update(lua_State* L);
@@ -102,6 +103,7 @@ namespace Corona
 				{ "play", play },
 				{ "resume", resume },
 				{ "rewind", rewind },
+				{ "seek", seek },
 				{ "setVolume", setVolume },
 				{ "stop", stop },
 				{ "update", update },
@@ -223,7 +225,7 @@ namespace Corona
 
 	int BassLibrary::dispose(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.dispose() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.dispose() channel (number) expected");
 		BASS_StreamFree(channel);
 
 		return 0;
@@ -231,7 +233,7 @@ namespace Corona
 
 	int BassLibrary::getDuration(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.getDuration() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.getDuration() channel (number) expected");
 		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
 		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
 
@@ -243,7 +245,7 @@ namespace Corona
 
 	int BassLibrary::getTags(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.getTags() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.getTags() channel (number) expected");
 
 		lua_newtable(L);
 		// title
@@ -299,7 +301,7 @@ namespace Corona
 			lua_getfield(L, 1, "channel");
 			if (lua_isnumber(L, -1))
 			{
-				channel = GetChannel(L, -1, "bass.getVolume() options.channel expected");
+				channel = GetChannel(L, -1, "bass.getVolume() options.channel (number) expected");
 				BASS_ChannelGetAttribute(channel, BASS_ATTRIB_VOL, &volume);
 			}
 			lua_pop(L, 1);
@@ -317,7 +319,7 @@ namespace Corona
 
 	int BassLibrary::isChannelActive(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.isChannelActive() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelActive() channel (number) expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isActive = (status == BASS_ACTIVE_STOPPED ? false : true);
 
@@ -328,7 +330,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPaused(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.isChannelPaused() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelPaused() channel (number) expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPaused = (status == BASS_ACTIVE_PAUSED ? true : false);
 
@@ -339,7 +341,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPlaying(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.isChannelPlaying() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelPlaying() channel (number) expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPlaying = (status == BASS_ACTIVE_PLAYING ? true : false);
 
@@ -432,7 +434,7 @@ namespace Corona
 
 	int BassLibrary::pause(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.pause() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.pause() channel (number) expected");
 		BASS_ChannelPause(channel);
 
 		return 0;
@@ -440,7 +442,7 @@ namespace Corona
 
 	int BassLibrary::play(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.play() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.play() channel (number) expected");
 
 		if (lua_istable(L, 2))
 		{
@@ -472,15 +474,33 @@ namespace Corona
 
 	int BassLibrary::resume(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.resume() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.resume() channel (number) expected");
 		BASS_ChannelPlay(channel, FALSE);
 		return 0;
 	}
 
 	int BassLibrary::rewind(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.rewind() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.rewind() channel (number) expected");
 		BASS_ChannelSetPosition(channel, 0, BASS_POS_RESET);
+
+		return 0;
+	}
+
+	int BassLibrary::seek(lua_State* L)
+	{
+		DWORD channel = GetChannel(L, 1, "bass.seek() channel expected");
+		float time = 0;
+
+		if (lua_isnumber(L, 2))
+		{
+			time = (float)lua_tonumber(L, 2) * 1000;
+			BASS_ChannelSetPosition(channel, BASS_ChannelSeconds2Bytes(channel, time), BASS_POS_BYTE);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.seek() time (number) expected, got: ", lua_typename(L, 2));
+		}
 
 		return 0;
 	}
@@ -500,7 +520,7 @@ namespace Corona
 			lua_getfield(L, 2, "channel");
 			if (lua_isnumber(L, -1))
 			{
-				channel = GetChannel(L, -1, "bass.setVolume() options.channel expected");
+				channel = GetChannel(L, -1, "bass.setVolume() options.channel (number) expected");
 				BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, volume);
 			}
 			lua_pop(L, 1);
@@ -516,7 +536,7 @@ namespace Corona
 
 	int BassLibrary::stop(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.stop() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.stop() channel (number) expected");
 		BASS_ChannelStop(channel);
 		DispatchAudioEvent(channel, false);
 
@@ -525,7 +545,7 @@ namespace Corona
 
 	int BassLibrary::update(lua_State* L)
 	{
-		DWORD channel = GetChannel(L, 1, "bass.update() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.update() channel (number) expected");
 
 		if (lua_istable(L, 2))
 		{

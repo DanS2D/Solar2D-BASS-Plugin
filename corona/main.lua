@@ -136,6 +136,19 @@ local rewindButton =
 rewindButton.x = display.contentCenterX
 rewindButton.y = stopButton.y + stopButton.contentHeight
 
+local seekButton =
+	widget.newButton(
+	{
+		label = "Seek To Midway",
+		onPress = function(event)
+			print("seeking")
+			bass.seek(channel, bass.getDuration(channel) / 2)
+		end
+	}
+)
+seekButton.x = display.contentCenterX
+seekButton.y = rewindButton.y + rewindButton.contentHeight
+
 local toggleLoopSwitch =
 	widget.newSwitch(
 	{
@@ -149,7 +162,7 @@ local toggleLoopSwitch =
 	}
 )
 toggleLoopSwitch.x = display.contentCenterX
-toggleLoopSwitch.y = rewindButton.y + rewindButton.contentHeight
+toggleLoopSwitch.y = seekButton.y + seekButton.contentHeight
 
 local slider =
 	widget.newSlider(

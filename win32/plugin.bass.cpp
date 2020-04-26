@@ -314,7 +314,7 @@ namespace Corona
 		fullPath.append("\\");
 		fullPath.append(fileName);
 
-		if (channel = BASS_StreamCreateFile(TRUE, fullPath.c_str(), 0, 0, 0))
+		if (channel = BASS_StreamCreateFile(FALSE, fullPath.c_str(), 0, 0, 0))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
@@ -370,7 +370,7 @@ namespace Corona
 	int BassLibrary::rewind(lua_State* L)
 	{
 		HSTREAM channel = getChannel(L, 1, "bass.rewind() channel expected");
-		// TODO: 
+		BASS_ChannelSetPosition(channel, 0, BASS_POS_RESET);
 
 		return 0;
 	}

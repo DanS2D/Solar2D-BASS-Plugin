@@ -10,7 +10,7 @@ local loadButton =
 	{
 		label = "Load",
 		onPress = function(event)
-			channel = bass.load(fileName, filePath)
+			channel = bass.loadStream(fileName, filePath)
 			print("audio duration: ", bass.getDuration(channel))
 		end
 	}
@@ -70,6 +70,18 @@ local stopButton =
 stopButton.x = display.contentCenterX
 stopButton.y = resumeButton.y + resumeButton.contentHeight
 
+local rewindButton =
+	widget.newButton(
+	{
+		label = "Rewind",
+		onPress = function(event)
+			bass.rewind(channel)
+		end
+	}
+)
+rewindButton.x = display.contentCenterX
+rewindButton.y = stopButton.y + stopButton.contentHeight
+
 local toggleLoopSwitch =
 	widget.newSwitch(
 	{
@@ -83,7 +95,7 @@ local toggleLoopSwitch =
 	}
 )
 toggleLoopSwitch.x = display.contentCenterX
-toggleLoopSwitch.y = stopButton.y + stopButton.contentHeight
+toggleLoopSwitch.y = rewindButton.y + rewindButton.contentHeight
 
 local slider =
 	widget.newSlider(

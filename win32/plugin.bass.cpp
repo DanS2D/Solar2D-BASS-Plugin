@@ -9,12 +9,19 @@
 #include <math.h>
 #include <stdio.h>
 #include <string>
+#include <map>
 
 // ----------------------------------------------------------------------------
 
 namespace Corona
 {
 	// ----------------------------------------------------------------------------
+
+	struct audio
+	{
+		Lua::Ref onComplete;
+		HSYNC handle;
+	};
 
 	class BassLibrary
 	{
@@ -23,6 +30,9 @@ namespace Corona
 
 	public:
 		static const char kName[];
+		static const char kEventName[];
+		static std::map<DWORD, audio> callbacks;
+		static lua_State* luaState;
 
 	public:
 		static int Open(lua_State* L);
@@ -57,6 +67,9 @@ namespace Corona
 
 	// This corresponds to the name of the library, e.g. [Lua] require "plugin.library"
 	const char BassLibrary::kName[] = "plugin.bass";
+	const char BassLibrary::kEventName[] = "bass";
+	std::map<DWORD, audio> BassLibrary::callbacks;
+	lua_State* BassLibrary::luaState;
 
 	int BassLibrary::Open(lua_State* L)
 	{
@@ -69,6 +82,7 @@ namespace Corona
 
 		// Set library as upvalue for each library function
 		Self* library = new Self;
+		luaState = L;
 
 		if (library->Initialize(platformContext))
 		{
@@ -149,7 +163,7 @@ namespace Corona
 
 	// ---------------------- HELPER FUNCTIONS -------------------------------------
 
-	DWORD getChannel(lua_State* L, int index, const char* errorMessage)
+	DWORD GetChannel(lua_State* L, int index, const char* errorMessage)
 	{
 		DWORD channel;
 
@@ -165,11 +179,51 @@ namespace Corona
 		return channel;
 	}
 
+	void DispatchAudioEvent(DWORD channel, bool isComplete)
+	{
+		if (BassLibrary::callbacks.count(channel) > 0)
+		{
+			DWORD loop = BASS_ChannelFlags(channel, BASS_SAMPLE_LOOP, 0);
+			lua_State* L = BassLibrary::luaState;
+
+			if (BassLibrary::callbacks[channel].onComplete != NULL)
+			{
+				// Event name
+				Corona::Lua::NewEvent(L, BassLibrary::kEventName);
+
+				// Event type
+				lua_pushnumber(L, channel);
+				lua_setfield(L, -2, "channel");
+
+				// String
+				lua_pushboolean(L, isComplete);
+				lua_setfield(L, -2, "completed");
+
+				// Dispatch the event
+				Lua::DispatchEvent(L, BassLibrary::callbacks[channel].onComplete, 0);
+
+				// if we're not looping this channel (or it was stopped), remove the listener
+				if (loop != 20l || !isComplete)
+				{
+					Lua::DeleteRef(L, BassLibrary::callbacks[channel].onComplete);
+					BassLibrary::callbacks[channel].onComplete = NULL;
+					BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].handle);
+					BassLibrary::callbacks[channel].handle = NULL;
+				}
+			}
+		}
+	}
+
+	void CALLBACK AudioCompleteCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
+	{
+		DispatchAudioEvent(channel, true);
+	}
+
 	// ----------------------- LUA FUNCTIONS ---------------------------------------
 
 	int BassLibrary::dispose(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.dispose() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.dispose() channel expected");
 		BASS_StreamFree(channel);
 
 		return 0;
@@ -177,7 +231,7 @@ namespace Corona
 
 	int BassLibrary::getDuration(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.getDuration() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.getDuration() channel expected");
 		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
 		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
 
@@ -189,7 +243,7 @@ namespace Corona
 
 	int BassLibrary::getTags(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.getTags() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.getTags() channel expected");
 
 		lua_newtable(L);
 		// title
@@ -245,7 +299,7 @@ namespace Corona
 			lua_getfield(L, 1, "channel");
 			if (lua_isnumber(L, -1))
 			{
-				channel = getChannel(L, -1, "bass.getVolume() options.channel expected");
+				channel = GetChannel(L, -1, "bass.getVolume() options.channel expected");
 				BASS_ChannelGetAttribute(channel, BASS_ATTRIB_VOL, &volume);
 			}
 			lua_pop(L, 1);
@@ -263,7 +317,7 @@ namespace Corona
 
 	int BassLibrary::isChannelActive(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.isChannelActive() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelActive() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isActive = (status == BASS_ACTIVE_STOPPED ? false : true);
 
@@ -274,7 +328,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPaused(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.isChannelPaused() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelPaused() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPaused = (status == BASS_ACTIVE_PAUSED ? true : false);
 
@@ -285,7 +339,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPlaying(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.isChannelPlaying() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.isChannelPlaying() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPlaying = (status == BASS_ACTIVE_PLAYING ? true : false);
 
@@ -296,7 +350,6 @@ namespace Corona
 
 	int BassLibrary::loadSound(lua_State* L)
 	{
-		//DWORD channel;
 		const char* fileName;
 		const char* filePath;
 
@@ -379,7 +432,7 @@ namespace Corona
 
 	int BassLibrary::pause(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.pause() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.pause() channel expected");
 		BASS_ChannelPause(channel);
 
 		return 0;
@@ -387,8 +440,7 @@ namespace Corona
 
 	int BassLibrary::play(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.play() channel expected");
-		// TODO: get onComplete listener and execute it when audio playback completes
+		DWORD channel = GetChannel(L, 1, "bass.play() channel expected");
 
 		if (lua_istable(L, 2))
 		{
@@ -397,6 +449,14 @@ namespace Corona
 			{
 				bool loop = lua_toboolean(L, -1);
 				BASS_ChannelFlags(channel, (loop ? BASS_SAMPLE_LOOP : 0), BASS_SAMPLE_LOOP);
+			}
+			lua_pop(L, 1);
+
+			lua_getfield(L, 2, "onComplete");
+			if (Lua::IsListener(L, -1, "bass"))
+			{
+				callbacks[channel].onComplete = Lua::NewRef(L, -1);
+				callbacks[channel].handle = BASS_ChannelSetSync(channel, BASS_SYNC_END, 0, AudioCompleteCallback, 0);
 			}
 			lua_pop(L, 1);
 		}
@@ -412,14 +472,14 @@ namespace Corona
 
 	int BassLibrary::resume(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.resume() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.resume() channel expected");
 		BASS_ChannelPlay(channel, FALSE);
 		return 0;
 	}
 
 	int BassLibrary::rewind(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.rewind() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.rewind() channel expected");
 		BASS_ChannelSetPosition(channel, 0, BASS_POS_RESET);
 
 		return 0;
@@ -440,7 +500,7 @@ namespace Corona
 			lua_getfield(L, 2, "channel");
 			if (lua_isnumber(L, -1))
 			{
-				channel = getChannel(L, -1, "bass.setVolume() options.channel expected");
+				channel = GetChannel(L, -1, "bass.setVolume() options.channel expected");
 				BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, volume);
 			}
 			lua_pop(L, 1);
@@ -456,15 +516,16 @@ namespace Corona
 
 	int BassLibrary::stop(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.stop() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.stop() channel expected");
 		BASS_ChannelStop(channel);
+		DispatchAudioEvent(channel, false);
 
 		return 0;
 	}
 
 	int BassLibrary::update(lua_State* L)
 	{
-		DWORD channel = getChannel(L, 1, "bass.update() channel expected");
+		DWORD channel = GetChannel(L, 1, "bass.update() channel expected");
 
 		if (lua_istable(L, 2))
 		{

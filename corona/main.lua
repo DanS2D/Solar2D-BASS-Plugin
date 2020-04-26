@@ -2,15 +2,22 @@ local widget = require("widget")
 local bass = require("plugin.bass")
 widget.setTheme("widget_theme_android_holo_dark")
 
+local resourcePath = system.pathForFile("", system.ResourceDirectory)
 local soundFileName = "thunder.wav"
-local soundFilePath = system.pathForFile("", system.ResourceDirectory)
-local streamFileName = "Various Artists - Clair De Lune.mp3"
-local streamFilePath = "E:\\Google Drive\\Music"
+local streamFileName = "Gentle-Rain.mp3"
 local loadSoundButton = nil
 local loadStreamButton = nil
 local soundChannel = 0
 local streamChannel = 0
 local channel = 0
+
+local function onAudioComplete(event)
+	if (type(event) == "table") then
+		for k, v in pairs(event) do
+			print(k, v)
+		end
+	end
+end
 
 local typeSegmentedControl =
 	widget.newSegmentedControl(
@@ -35,9 +42,7 @@ loadSoundButton =
 	{
 		label = "Load Sound",
 		onPress = function(event)
-			print("sound path: ", soundFilePath)
-			print("sound filename: ", soundFileName)
-			soundChannel = bass.loadSound(soundFileName, soundFilePath)
+			soundChannel = bass.loadSound(soundFileName, resourcePath)
 			channel = soundChannel
 			print("audio duration: ", bass.getDuration(channel))
 		end
@@ -51,7 +56,7 @@ loadStreamButton =
 	{
 		label = "Load Stream",
 		onPress = function(event)
-			streamChannel = bass.loadStream(streamFileName, streamFilePath)
+			streamChannel = bass.loadStream(streamFileName, resourcePath)
 			channel = streamChannel
 
 			for k, v in pairs(bass.getTags(streamChannel)) do
@@ -71,13 +76,7 @@ local playButton =
 	{
 		label = "Play",
 		onPress = function(event)
-			bass.play(channel)
-
-			if (channel == soundChannel) then
-				for i = 1, 5 do
-					bass.play(channel)
-				end
-			end
+			bass.play(channel, {onComplete = onAudioComplete})
 
 			print("is channel playing?: ", bass.isChannelPlaying(channel))
 		end

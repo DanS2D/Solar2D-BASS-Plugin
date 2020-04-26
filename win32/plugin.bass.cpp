@@ -518,7 +518,8 @@ namespace Corona
 			CoronaLuaError(L, "bass.play() couldn't play audio for channel: %lu", channel);
 		}
 
-		return 0;
+		lua_pushnumber(L, channel);
+		return 1;
 	}
 
 	int BassLibrary::resume(lua_State* L)

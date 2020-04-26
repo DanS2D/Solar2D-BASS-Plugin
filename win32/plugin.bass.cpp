@@ -33,16 +33,22 @@ namespace Corona
 		bool Initialize(void* platformContext);
 
 	public:
-		static int update(lua_State* L);
+
+		static int dispose(lua_State* L);
 		static int getDuration(lua_State* L);
-		static int load(lua_State* L);
-		static int play(lua_State* L);
-		static int pause(lua_State* L);
-		static int resume(lua_State* L);
-		static int stop(lua_State* L);
-		static int setVolume(lua_State* L);
 		static int getVolume(lua_State* L);
+		static int isChannelActive(lua_State* L);
+		static int isChannelPaused(lua_State* L);
 		static int isChannelPlaying(lua_State* L);
+		static int loadStream(lua_State* L);
+		static int loadSound(lua_State* L);
+		static int pause(lua_State* L);
+		static int play(lua_State* L);
+		static int resume(lua_State* L);
+		static int rewind(lua_State* L);
+		static int setVolume(lua_State* L);
+		static int stop(lua_State* L);
+		static int update(lua_State* L);
 	};
 
 	// ----------------------------------------------------------------------------
@@ -67,15 +73,20 @@ namespace Corona
 			// Functions in library
 			static const luaL_Reg kFunctions[] =
 			{
+				{ "dispose", dispose },
 				{ "getDuration", getDuration },
 				{ "getVolume", getVolume },
+				{ "isChannelActive", isChannelActive },
+				{ "isChannelPaused", isChannelPaused },
 				{ "isChannelPlaying", isChannelPlaying },
-				{ "load", load },
+				{ "loadSound", loadSound },
+				{ "loadStream", loadStream },
 				{ "pause", pause },
 				{ "play", play },
 				{ "resume", resume },
-				{ "stop", stop },
+				{ "rewind", rewind },
 				{ "setVolume", setVolume },
+				{ "stop", stop },
 				{ "update", update },
 				{ NULL, NULL }
 			};
@@ -153,6 +164,26 @@ namespace Corona
 
 	// ----------------------- LUA FUNCTIONS ---------------------------------------
 
+	int BassLibrary::dispose(lua_State* L)
+	{
+		HSTREAM channel = getChannel(L, 1, "bass.dispose() channel expected");
+		BASS_StreamFree(channel);
+
+		return 0;
+	}
+
+	int BassLibrary::getDuration(lua_State* L)
+	{
+		HSTREAM channel = getChannel(L, 1, "bass.getDuration() channel expected");
+		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
+		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
+
+		// match the corona audio api and return this number in miliseconds
+		lua_pushnumber(L, durationInSeconds / 1000);
+
+		return 1;
+	}
+
 	int BassLibrary::getVolume(lua_State* L)
 	{
 		float volume = 0;
@@ -179,21 +210,31 @@ namespace Corona
 		return 1;
 	}
 
-	int BassLibrary::getDuration(lua_State* L)
+	int BassLibrary::isChannelActive(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.getDuration() channel expected");
-		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
-		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
+		HSTREAM channel = getChannel(L, 1, "bass.isChannelActive() channel expected");
+		DWORD status = BASS_ChannelIsActive(channel);
+		bool isActive = (status == BASS_ACTIVE_STOPPED ? false : true);
 
-		// match the corona audio api and return this number in miliseconds
-		lua_pushnumber(L, durationInSeconds / 1000);
+		lua_pushboolean(L, isActive);
+
+		return 1;
+	}
+
+	int BassLibrary::isChannelPaused(lua_State* L)
+	{
+		HSTREAM channel = getChannel(L, 1, "bass.isChannelPaused() channel expected");
+		DWORD status = BASS_ChannelIsActive(channel);
+		bool isPaused = (status == BASS_ACTIVE_PAUSED ? true : false);
+
+		lua_pushboolean(L, isPaused);
 
 		return 1;
 	}
 
 	int BassLibrary::isChannelPlaying(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.getDuration() channel expected");
+		HSTREAM channel = getChannel(L, 1, "bass.isChannelPlaying() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPlaying = (status == BASS_ACTIVE_PLAYING ? true : false);
 
@@ -202,7 +243,7 @@ namespace Corona
 		return 1;
 	}
 
-	int BassLibrary::load(lua_State* L)
+	int BassLibrary::loadSound(lua_State* L)
 	{
 		HSTREAM channel;
 		const char* fileName;
@@ -214,7 +255,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.load() filename (string) expected, got: %s", lua_typename(L, 1));
+			CoronaLuaError(L, "bass.loadSound() filename (string) expected, got: %s", lua_typename(L, 1));
 		}
 
 		if (lua_isstring(L, 2))
@@ -223,22 +264,64 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.load() filePath (string) expected, got: %s", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.loadSound() filePath (string) expected, got: %s", lua_typename(L, 2));
 		}
 
 		std::string fullPath = filePath;
 		fullPath.append("\\");
 		fullPath.append(fileName);
 
+		//BASS_SampleLoad ?
+
 		if (channel = BASS_StreamCreateFile(FALSE, fullPath.c_str(), 0, 0, 0))
 		{
 			lua_pushnumber(L, channel);
-			printf("load() stream is: %ld\n", channel);
 			return 1;
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.load() couldn't create stream for file: %s", fullPath.c_str());
+			CoronaLuaError(L, "bass.loadSound() couldn't create sound for file: %s", fullPath.c_str());
+		}
+
+		return 0;
+	}
+
+	int BassLibrary::loadStream(lua_State* L)
+	{
+		HSTREAM channel;
+		const char* fileName;
+		const char* filePath;
+
+		if (lua_isstring(L, 1))
+		{
+			fileName = lua_tostring(L, 1);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.loadStream() filename (string) expected, got: %s", lua_typename(L, 1));
+		}
+
+		if (lua_isstring(L, 2))
+		{
+			filePath = lua_tostring(L, 2);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.loadStream() filePath (string) expected, got: %s", lua_typename(L, 2));
+		}
+
+		std::string fullPath = filePath;
+		fullPath.append("\\");
+		fullPath.append(fileName);
+
+		if (channel = BASS_StreamCreateFile(TRUE, fullPath.c_str(), 0, 0, 0))
+		{
+			lua_pushnumber(L, channel);
+			return 1;
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.loadStream() couldn't create stream for file: %s", fullPath.c_str());
 		}
 
 		return 0;
@@ -246,6 +329,8 @@ namespace Corona
 
 	int BassLibrary::pause(lua_State* L)
 	{
+		HSTREAM channel = getChannel(L, 1, "bass.pause() channel expected");
+		BASS_ChannelPause(channel);
 
 		return 0;
 	}
@@ -253,6 +338,7 @@ namespace Corona
 	int BassLibrary::play(lua_State* L)
 	{
 		HSTREAM channel = getChannel(L, 1, "bass.play() channel expected");
+		// TODO: get onComplete listener and execute it when audio playback completes
 
 		if (lua_istable(L, 2))
 		{
@@ -266,9 +352,9 @@ namespace Corona
 		}
 
 		// play the stream (continue from current position)
-		if (!BASS_ChannelPlay(channel, TRUE))
+		if (!BASS_ChannelPlay(channel, FALSE))
 		{
-			CoronaLuaError(L, "bass.play() couldn't play audio for handle: %ld", channel);
+			CoronaLuaError(L, "bass.play() couldn't play audio for channel: %lu", channel);
 		}
 
 		return 0;
@@ -276,12 +362,15 @@ namespace Corona
 
 	int BassLibrary::resume(lua_State* L)
 	{
-
+		HSTREAM channel = getChannel(L, 1, "bass.resume() channel expected");
+		BASS_ChannelPlay(channel, FALSE);
 		return 0;
 	}
 
-	int BassLibrary::stop(lua_State* L)
+	int BassLibrary::rewind(lua_State* L)
 	{
+		HSTREAM channel = getChannel(L, 1, "bass.rewind() channel expected");
+		// TODO: 
 
 		return 0;
 	}
@@ -311,6 +400,14 @@ namespace Corona
 			// divide the number by 10 to match the range used in channel volume control
 			BASS_SetVolume((float)volume / 10);
 		}
+
+		return 0;
+	}
+
+	int BassLibrary::stop(lua_State* L)
+	{
+		HSTREAM channel = getChannel(L, 1, "bass.stop() channel expected");
+		BASS_ChannelStop(channel);
 
 		return 0;
 	}

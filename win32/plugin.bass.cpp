@@ -46,6 +46,8 @@ namespace Corona
 	public:
 
 		static int dispose(lua_State* L);
+		static int fadeIn(lua_State* L);
+		static int fadeOut(lua_State* L);
 		static int getDuration(lua_State* L);
 		static int getTags(lua_State* L);
 		static int getVolume(lua_State* L);
@@ -91,6 +93,8 @@ namespace Corona
 			static const luaL_Reg kFunctions[] =
 			{
 				{ "dispose", dispose },
+				{ "fadeIn", fadeIn },
+				{ "fadeOut", fadeOut },
 				{ "getDuration", getDuration },
 				{ "getTags", getTags },
 				{ "getVolume", getVolume },
@@ -208,8 +212,8 @@ namespace Corona
 				if (loop != 20l || !isComplete)
 				{
 					Lua::DeleteRef(L, BassLibrary::callbacks[channel].onComplete);
-					BassLibrary::callbacks[channel].onComplete = NULL;
 					BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].handle);
+					BassLibrary::callbacks[channel].onComplete = NULL;
 					BassLibrary::callbacks[channel].handle = NULL;
 				}
 			}
@@ -221,12 +225,57 @@ namespace Corona
 		DispatchAudioEvent(channel, true);
 	}
 
+	void CALLBACK AudioSlideCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
+	{
+		BASS_ChannelRemoveSync(channel, handle);
+		BASS_ChannelStop(channel);
+		DispatchAudioEvent(channel, true);
+	}
+
 	// ----------------------- LUA FUNCTIONS ---------------------------------------
 
 	int BassLibrary::dispose(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.dispose() channel (number) expected");
 		BASS_StreamFree(channel);
+
+		return 0;
+	}
+
+	int BassLibrary::fadeIn(lua_State* L)
+	{
+		DWORD channel = GetChannel(L, 1, "bass.fadeIn() channel (number) expected");
+		float time = 0;
+
+		if (lua_isnumber(L, 2))
+		{
+			time = (float)lua_tonumber(L, 2);
+			BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, 0);
+			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 1.0, time);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.fadeIn() time (number) expected, got: ", lua_typename(L, 2));
+		}
+
+		return 0;
+	}
+
+	int BassLibrary::fadeOut(lua_State* L)
+	{
+		DWORD channel = GetChannel(L, 1, "bass.fadeOut() channel (number) expected");
+		float time = 0;
+
+		if (lua_isnumber(L, 2))
+		{
+			time = (float)lua_tonumber(L, 2);
+			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 0, time);
+			BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.fadeOut() time (number) expected, got: ", lua_typename(L, 2));
+		}
 
 		return 0;
 	}

@@ -77,6 +77,7 @@ local playButton =
 		label = "Play",
 		onPress = function(event)
 			bass.play(channel, {onComplete = onAudioComplete})
+			bass.fadeOut(channel, 5000)
 
 			print("is channel playing?: ", bass.isChannelPlaying(channel))
 		end

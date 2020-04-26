@@ -1,4 +1,5 @@
 #include "bass.h"
+#include "tags.h"
 #include "CoronaAssert.h"
 #include "CoronaEvent.h"
 #include "CoronaLua.h"
@@ -36,6 +37,7 @@ namespace Corona
 
 		static int dispose(lua_State* L);
 		static int getDuration(lua_State* L);
+		static int getTags(lua_State* L);
 		static int getVolume(lua_State* L);
 		static int isChannelActive(lua_State* L);
 		static int isChannelPaused(lua_State* L);
@@ -75,6 +77,7 @@ namespace Corona
 			{
 				{ "dispose", dispose },
 				{ "getDuration", getDuration },
+				{ "getTags", getTags },
 				{ "getVolume", getVolume },
 				{ "isChannelActive", isChannelActive },
 				{ "isChannelPaused", isChannelPaused },
@@ -146,9 +149,9 @@ namespace Corona
 
 	// ---------------------- HELPER FUNCTIONS -------------------------------------
 
-	HSTREAM getChannel(lua_State* L, int index, const char* errorMessage)
+	DWORD getChannel(lua_State* L, int index, const char* errorMessage)
 	{
-		HSTREAM channel;
+		DWORD channel;
 
 		if (lua_isnumber(L, index))
 		{
@@ -166,7 +169,7 @@ namespace Corona
 
 	int BassLibrary::dispose(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.dispose() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.dispose() channel expected");
 		BASS_StreamFree(channel);
 
 		return 0;
@@ -174,7 +177,7 @@ namespace Corona
 
 	int BassLibrary::getDuration(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.getDuration() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.getDuration() channel expected");
 		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
 		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
 
@@ -184,10 +187,58 @@ namespace Corona
 		return 1;
 	}
 
+	int BassLibrary::getTags(lua_State* L)
+	{
+		DWORD channel = getChannel(L, 1, "bass.getTags() channel expected");
+
+		lua_newtable(L);
+		// title
+		lua_pushstring(L, TAGS_Read(channel, "%TITL"));
+		lua_setfield(L, -2, "title");
+		// artist
+		lua_pushstring(L, TAGS_Read(channel, "%ARTI"));
+		lua_setfield(L, -2, "artist");
+		// album
+		lua_pushstring(L, TAGS_Read(channel, "%ALBM"));
+		lua_setfield(L, -2, "album");
+		// genre
+		lua_pushstring(L, TAGS_Read(channel, "%GNRE"));
+		lua_setfield(L, -2, "genre");
+		// year
+		lua_pushstring(L, TAGS_Read(channel, "%YEAR"));
+		lua_setfield(L, -2, "year");
+		// comment
+		lua_pushstring(L, TAGS_Read(channel, "%CMNT"));
+		lua_setfield(L, -2, "comment");
+		// track number
+		lua_pushstring(L, TAGS_Read(channel, "%TRCK"));
+		lua_setfield(L, -2, "trackNumber");
+		// composer
+		lua_pushstring(L, TAGS_Read(channel, "%COMP"));
+		lua_setfield(L, -2, "composer");
+		// copyright
+		lua_pushstring(L, TAGS_Read(channel, "%COPY"));
+		lua_setfield(L, -2, "copyright");
+		// subtitle
+		lua_pushstring(L, TAGS_Read(channel, "%SUBT"));
+		lua_setfield(L, -2, "subTitle");
+		// album artist
+		lua_pushstring(L, TAGS_Read(channel, "%AART"));
+		lua_setfield(L, -2, "albumArtist");
+		// disc number
+		lua_pushstring(L, TAGS_Read(channel, "%DISC"));
+		lua_setfield(L, -2, "discNumber");
+		// publisher
+		lua_pushstring(L, TAGS_Read(channel, "%PUBL"));
+		lua_setfield(L, -2, "publisher");
+
+		return 1;
+	}
+
 	int BassLibrary::getVolume(lua_State* L)
 	{
 		float volume = 0;
-		HSTREAM channel;
+		DWORD channel;
 
 		if (lua_istable(L, 1))
 		{
@@ -212,7 +263,7 @@ namespace Corona
 
 	int BassLibrary::isChannelActive(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.isChannelActive() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.isChannelActive() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isActive = (status == BASS_ACTIVE_STOPPED ? false : true);
 
@@ -223,7 +274,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPaused(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.isChannelPaused() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.isChannelPaused() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPaused = (status == BASS_ACTIVE_PAUSED ? true : false);
 
@@ -234,7 +285,7 @@ namespace Corona
 
 	int BassLibrary::isChannelPlaying(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.isChannelPlaying() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.isChannelPlaying() channel expected");
 		DWORD status = BASS_ChannelIsActive(channel);
 		bool isPlaying = (status == BASS_ACTIVE_PLAYING ? true : false);
 
@@ -245,7 +296,7 @@ namespace Corona
 
 	int BassLibrary::loadSound(lua_State* L)
 	{
-		HSTREAM channel;
+		//DWORD channel;
 		const char* fileName;
 		const char* filePath;
 
@@ -271,10 +322,9 @@ namespace Corona
 		fullPath.append("\\");
 		fullPath.append(fileName);
 
-		//BASS_SampleLoad ?
-
-		if (channel = BASS_StreamCreateFile(FALSE, fullPath.c_str(), 0, 0, 0))
+		if (DWORD sample = BASS_SampleLoad(FALSE, fullPath.c_str(), 0, 0, 1, 0))
 		{
+			DWORD channel = BASS_SampleGetChannel(sample, TRUE);
 			lua_pushnumber(L, channel);
 			return 1;
 		}
@@ -288,7 +338,7 @@ namespace Corona
 
 	int BassLibrary::loadStream(lua_State* L)
 	{
-		HSTREAM channel;
+		DWORD channel;
 		const char* fileName;
 		const char* filePath;
 
@@ -329,7 +379,7 @@ namespace Corona
 
 	int BassLibrary::pause(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.pause() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.pause() channel expected");
 		BASS_ChannelPause(channel);
 
 		return 0;
@@ -337,7 +387,7 @@ namespace Corona
 
 	int BassLibrary::play(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.play() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.play() channel expected");
 		// TODO: get onComplete listener and execute it when audio playback completes
 
 		if (lua_istable(L, 2))
@@ -362,14 +412,14 @@ namespace Corona
 
 	int BassLibrary::resume(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.resume() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.resume() channel expected");
 		BASS_ChannelPlay(channel, FALSE);
 		return 0;
 	}
 
 	int BassLibrary::rewind(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.rewind() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.rewind() channel expected");
 		BASS_ChannelSetPosition(channel, 0, BASS_POS_RESET);
 
 		return 0;
@@ -378,7 +428,7 @@ namespace Corona
 	int BassLibrary::setVolume(lua_State* L)
 	{
 		float volume = 0;
-		HSTREAM channel;
+		DWORD channel;
 
 		if (lua_isnumber(L, 1))
 		{
@@ -406,7 +456,7 @@ namespace Corona
 
 	int BassLibrary::stop(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.stop() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.stop() channel expected");
 		BASS_ChannelStop(channel);
 
 		return 0;
@@ -414,7 +464,7 @@ namespace Corona
 
 	int BassLibrary::update(lua_State* L)
 	{
-		HSTREAM channel = getChannel(L, 1, "bass.update() channel expected");
+		DWORD channel = getChannel(L, 1, "bass.update() channel expected");
 
 		if (lua_istable(L, 2))
 		{

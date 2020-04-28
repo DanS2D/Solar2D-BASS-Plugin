@@ -4,12 +4,12 @@
 #include "CoronaEvent.h"
 #include "CoronaLua.h"
 #include "CoronaLibrary.h"
-#include <string.h>
 #include <windows.h>
 #include <math.h>
 #include <stdio.h>
-#include <string>
+#include <string.h>
 #include <map>
+#include <string>
 
 // ----------------------------------------------------------------------------
 
@@ -19,8 +19,10 @@ namespace Corona
 
 	struct audio
 	{
-		Lua::Ref onComplete;
-		HSYNC handle;
+		CoronaLuaRef onComplete;
+		HSYNC completeHandle;
+		HSYNC slideHandle;
+		bool loop;
 	};
 
 	class BassLibrary
@@ -44,12 +46,14 @@ namespace Corona
 		bool Initialize(void* platformContext);
 
 	public:
-
 		static int dispose(lua_State* L);
 		static int fadeIn(lua_State* L);
 		static int fadeOut(lua_State* L);
+		static int getDevices(lua_State* L);
 		static int getDuration(lua_State* L);
+		static int getLevel(lua_State* L);
 		static int getTags(lua_State* L);
+		static int getPlaybackTime(lua_State* L);
 		static int getVolume(lua_State* L);
 		static int isChannelActive(lua_State* L);
 		static int isChannelPaused(lua_State* L);
@@ -60,6 +64,7 @@ namespace Corona
 		static int resume(lua_State* L);
 		static int rewind(lua_State* L);
 		static int seek(lua_State* L);
+		static int setDevice(lua_State* L);
 		static int setVolume(lua_State* L);
 		static int stop(lua_State* L);
 		static int update(lua_State* L);
@@ -94,8 +99,11 @@ namespace Corona
 				{ "dispose", dispose },
 				{ "fadeIn", fadeIn },
 				{ "fadeOut", fadeOut },
+				{ "getDevices", getDevices },
 				{ "getDuration", getDuration },
+				{ "getLevel", getLevel },
 				{ "getTags", getTags },
+				{ "getPlaybackTime", getPlaybackTime },
 				{ "getVolume", getVolume },
 				{ "isChannelActive", isChannelActive },
 				{ "isChannelPaused", isChannelPaused },
@@ -106,6 +114,7 @@ namespace Corona
 				{ "resume", resume },
 				{ "rewind", rewind },
 				{ "seek", seek },
+				{ "setDevice", setDevice },
 				{ "setVolume", setVolume },
 				{ "stop", stop },
 				{ "update", update },
@@ -131,6 +140,7 @@ namespace Corona
 			delete library;
 		}
 
+		BassLibrary::callbacks.clear();
 		BASS_PluginFree(0);
 		BASS_Free();
 
@@ -157,6 +167,7 @@ namespace Corona
 		}
 
 		BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
+		BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
 
 		if (!BASS_Init(1, 44100, 0, 0, NULL))
 		{
@@ -172,6 +183,8 @@ namespace Corona
 		BASS_PluginLoad("bassopus.dll", 0);
 		BASS_PluginLoad("basszxtune.dll", 0);
 #endif
+
+		TAGS_SetUTF8(true);
 
 		return 1;
 	}
@@ -198,32 +211,31 @@ namespace Corona
 	{
 		if (BassLibrary::callbacks.count(channel) > 0)
 		{
-			DWORD loop = BASS_ChannelFlags(channel, BASS_SAMPLE_LOOP, 0);
-			lua_State* L = BassLibrary::luaState;
-
 			if (BassLibrary::callbacks[channel].onComplete != NULL)
 			{
-				// Event name
-				Corona::Lua::NewEvent(L, BassLibrary::kEventName);
+				lua_State* L = BassLibrary::luaState;
 
-				// Event type
+				CoronaLuaNewEvent(L, BassLibrary::kEventName);
+				// the channel that finished playback
 				lua_pushnumber(L, channel);
 				lua_setfield(L, -2, "channel");
-
-				// String
+				// is this channel looping?
+				lua_pushboolean(L, BassLibrary::callbacks[channel].loop);
+				lua_setfield(L, -2, "loop");
+				// was playback completed or stoppped
 				lua_pushboolean(L, isComplete);
 				lua_setfield(L, -2, "completed");
 
-				// Dispatch the event
-				Lua::DispatchEvent(L, BassLibrary::callbacks[channel].onComplete, 0);
+				CoronaLuaDispatchEvent(L, BassLibrary::callbacks[channel].onComplete, 0);
 
 				// if we're not looping this channel (or it was stopped), remove the listener
-				if (loop != 20l || !isComplete)
+				if (!BassLibrary::callbacks[channel].loop || !isComplete)
 				{
-					Lua::DeleteRef(L, BassLibrary::callbacks[channel].onComplete);
-					BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].handle);
+					CoronaLuaDeleteRef(L, BassLibrary::callbacks[channel].onComplete);
+					BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].completeHandle);
 					BassLibrary::callbacks[channel].onComplete = NULL;
-					BassLibrary::callbacks[channel].handle = NULL;
+					BassLibrary::callbacks[channel].completeHandle = NULL;
+					BassLibrary::callbacks.erase(channel);
 				}
 			}
 		}
@@ -236,7 +248,7 @@ namespace Corona
 
 	void CALLBACK AudioSlideCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
 	{
-		BASS_ChannelRemoveSync(channel, handle);
+		BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].slideHandle);
 		BASS_ChannelStop(channel);
 		DispatchAudioEvent(channel, true);
 	}
@@ -261,6 +273,7 @@ namespace Corona
 			time = (float)lua_tonumber(L, 2);
 			BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, 0);
 			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 1.0, time);
+			BassLibrary::callbacks[channel].slideHandle = BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
 		}
 		else
 		{
@@ -279,7 +292,7 @@ namespace Corona
 		{
 			time = (float)lua_tonumber(L, 2);
 			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 0, time);
-			BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
+			BassLibrary::callbacks[channel].slideHandle = BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
 		}
 		else
 		{
@@ -289,8 +302,30 @@ namespace Corona
 		return 0;
 	}
 
+	int BassLibrary::getDevices(lua_State* L)
+	{
+		BASS_DEVICEINFO deviceInfo;
+		lua_newtable(L);
+
+		for (int i = 0; BASS_GetDeviceInfo(i, &deviceInfo); i++)
+		{
+			if (deviceInfo.flags & BASS_DEVICE_ENABLED)
+			{
+				lua_newtable(L);
+				lua_pushnumber(L, i);
+				lua_setfield(L, -2, "index");
+				lua_pushstring(L, deviceInfo.name);
+				lua_setfield(L, -2, "name");
+				lua_rawseti(L, -2, i);
+			}
+		}
+
+		return 1;
+	}
+
 	int BassLibrary::getDuration(lua_State* L)
 	{
+		// TODO: change duration output to seconds
 		DWORD channel = GetChannel(L, 1, "bass.getDuration() channel (number) expected");
 		QWORD lengthInBytes = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
 		double durationInSeconds = BASS_ChannelBytes2Seconds(channel, lengthInBytes);
@@ -299,6 +334,17 @@ namespace Corona
 		lua_pushnumber(L, durationInSeconds / 1000);
 
 		return 1;
+	}
+
+	int BassLibrary::getLevel(lua_State* L)
+	{
+		DWORD channel = GetChannel(L, 1, "bass.getLevel() channel (number) expected");
+		DWORD level = BASS_ChannelGetLevel(channel);
+
+		lua_pushnumber(L, LOWORD(level));
+		lua_pushnumber(L, HIWORD(level));
+
+		return 2;
 	}
 
 	int BassLibrary::getTags(lua_State* L)
@@ -349,6 +395,31 @@ namespace Corona
 		return 1;
 	}
 
+	int BassLibrary::getPlaybackTime(lua_State* L)
+	{
+		DWORD channel = GetChannel(L, 1, "bass.getTime() channel (number) expected");
+		DWORD length = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
+		DWORD position = BASS_ChannelGetPosition(channel, BASS_POS_BYTE);
+		DWORD duration = BASS_ChannelBytes2Seconds(channel, length);
+		DWORD elapsed = BASS_ChannelBytes2Seconds(channel, position);
+
+		lua_newtable(L, 1);
+		lua_newtable(L, 1);
+		lua_pushnumber(L, elapsed / 60);
+		lua_setfield(L, -2, "minutes");
+		lua_pushnumber(L, elapsed % 60);
+		lua_setfield(L, -2, "seconds");
+		lua_setfield(L, -2, "elapsed");
+		lua_newtable(L, 1);
+		lua_pushnumber(L, duration / 60);
+		lua_setfield(L, -2, "minutes");
+		lua_pushnumber(L, duration % 60);
+		lua_setfield(L, -2, "seconds");
+		lua_setfield(L, -2, "duration");
+
+		return 1;
+	}
+
 	int BassLibrary::getVolume(lua_State* L)
 	{
 		float volume = 0;
@@ -366,8 +437,8 @@ namespace Corona
 		}
 		else
 		{
-			// multiply the number by 10 to match the range used in channel volume control
-			volume = BASS_GetVolume() * 10;
+			volume = (float)(BASS_GetConfig(BASS_CONFIG_GVOL_STREAM));
+			volume /= 10000;
 		}
 
 		lua_pushnumber(L, volume);
@@ -467,15 +538,17 @@ namespace Corona
 			if (lua_isboolean(L, -1))
 			{
 				bool loop = lua_toboolean(L, -1);
+				callbacks[channel].loop = loop;
 				BASS_ChannelFlags(channel, (loop ? BASS_SAMPLE_LOOP : 0), BASS_SAMPLE_LOOP);
 			}
 			lua_pop(L, 1);
 
 			lua_getfield(L, 2, "onComplete");
-			if (Lua::IsListener(L, -1, "bass"))
+			if (CoronaLuaIsListener(L, -1, kEventName))
 			{
-				callbacks[channel].onComplete = Lua::NewRef(L, -1);
-				callbacks[channel].handle = BASS_ChannelSetSync(channel, BASS_SYNC_END, 0, AudioCompleteCallback, 0);
+				BASS_ChannelFlags(channel, BASS_MUSIC_STOPBACK, BASS_MUSIC_STOPBACK);
+				callbacks[channel].onComplete = CoronaLuaNewRef(L, -1);
+				callbacks[channel].completeHandle = BASS_ChannelSetSync(channel, BASS_SYNC_END | BASS_SYNC_MIXTIME, 0, AudioCompleteCallback, 0);
 			}
 			lua_pop(L, 1);
 		}
@@ -499,6 +572,7 @@ namespace Corona
 
 	int BassLibrary::rewind(lua_State* L)
 	{
+		// TODO: shouldn't try and set position on a potentially NULL channel. Check for that
 		DWORD channel = GetChannel(L, 1, "bass.rewind() channel (number) expected");
 		BASS_ChannelSetPosition(channel, 0, BASS_POS_RESET);
 
@@ -518,6 +592,28 @@ namespace Corona
 		else
 		{
 			CoronaLuaError(L, "bass.seek() time (number) expected, got: ", lua_typename(L, 2));
+		}
+
+		return 0;
+	}
+
+	int BassLibrary::setDevice(lua_State* L)
+	{
+		unsigned int deviceIndex = 1;
+
+		if (lua_isnumber(L, 1))
+		{
+			deviceIndex = lua_tonumber(L, 1);
+			BASS_Free();
+
+			if (!BASS_Init(deviceIndex, 44100, 0, 0, NULL))
+			{
+				CoronaLuaError(L, "bass.setDevice() couldn't initialize device at index %d\n", deviceIndex);
+			}
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.setDevice() device index (number) expected, got: ", lua_typename(L, 1));
 		}
 
 		return 0;
@@ -545,8 +641,7 @@ namespace Corona
 		}
 		else
 		{
-			// divide the number by 10 to match the range used in channel volume control
-			BASS_SetVolume((float)volume / 10);
+			BASS_SetConfig(BASS_CONFIG_GVOL_STREAM, volume * 10000);
 		}
 
 		return 0;
@@ -555,8 +650,13 @@ namespace Corona
 	int BassLibrary::stop(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.stop() channel (number) expected");
-		BASS_ChannelStop(channel);
-		DispatchAudioEvent(channel, false);
+
+		if (BASS_ChannelStop(channel))
+		{
+			// I don't think we should waste time dispatching events for audio stop. 
+			// if you call audio.stop, you are making a decision to stop the audio, meaning, you know it's stopped already.
+			//DispatchAudioEvent(channel, false);
+		}
 
 		return 0;
 	}
@@ -571,6 +671,7 @@ namespace Corona
 			if (lua_isboolean(L, -1))
 			{
 				bool loop = lua_toboolean(L, -1);
+				callbacks[channel].loop = loop;
 				BASS_ChannelFlags(channel, (loop ? BASS_SAMPLE_LOOP : 0), BASS_SAMPLE_LOOP);
 			}
 			lua_pop(L, 1);

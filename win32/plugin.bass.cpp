@@ -258,6 +258,18 @@ namespace Corona
 	int BassLibrary::dispose(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.dispose() channel (number) expected");
+
+		if (BassLibrary::callbacks.count(channel) > 0)
+		{
+			CoronaLuaDeleteRef(L, BassLibrary::callbacks[channel].onComplete);
+			BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].completeHandle);
+			BASS_ChannelRemoveSync(channel, BassLibrary::callbacks[channel].slideHandle);
+			BassLibrary::callbacks[channel].onComplete = NULL;
+			BassLibrary::callbacks[channel].completeHandle = NULL;
+			BassLibrary::callbacks[channel].slideHandle = NULL;
+			BassLibrary::callbacks.erase(channel);
+		}
+
 		BASS_StreamFree(channel);
 
 		return 0;
@@ -403,14 +415,14 @@ namespace Corona
 		DWORD duration = BASS_ChannelBytes2Seconds(channel, length);
 		DWORD elapsed = BASS_ChannelBytes2Seconds(channel, position);
 
-		lua_newtable(L, 1);
-		lua_newtable(L, 1);
+		lua_newtable(L);
+		lua_newtable(L);
 		lua_pushnumber(L, elapsed / 60);
 		lua_setfield(L, -2, "minutes");
 		lua_pushnumber(L, elapsed % 60);
 		lua_setfield(L, -2, "seconds");
 		lua_setfield(L, -2, "elapsed");
-		lua_newtable(L, 1);
+		lua_newtable(L);
 		lua_pushnumber(L, duration / 60);
 		lua_setfield(L, -2, "minutes");
 		lua_pushnumber(L, duration % 60);
@@ -599,7 +611,7 @@ namespace Corona
 
 	int BassLibrary::setDevice(lua_State* L)
 	{
-		unsigned int deviceIndex = 1;
+		int deviceIndex = 1;
 
 		if (lua_isnumber(L, 1))
 		{

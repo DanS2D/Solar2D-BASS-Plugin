@@ -12,8 +12,5 @@
     <ClInclude Include="bass\headers\bass.h">
       <Filter>include</Filter>
     </ClInclude>
-    <ClInclude Include="bass\headers\tags.h">
-      <Filter>include</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

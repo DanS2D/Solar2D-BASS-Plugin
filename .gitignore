@@ -357,3 +357,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+win32/Dbg/Plugin.tlog
+win32/Dbg/Plugin.vcxproj.FileListAbsolute.txt
+win32/Dbg/plugin_bass.exp
+win32/Dbg

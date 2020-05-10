@@ -24,6 +24,7 @@
     <ProjectGuid>{79F0CACC-457B-4A25-BC54-81277688C361}</ProjectGuid>
     <RootNamespace>Plugin</RootNamespace>
     <Keyword>Win32Proj</Keyword>
+    <ProjectName>Plugin</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -125,8 +126,11 @@
     </Link>
     <PostBuildEvent />
     <PostBuildEvent>
-      <Command>copy "$(OutDir)$(TargetName).dll" "$(appdata)\Corona Labs\Corona Simulator\Plugins\$(TargetName).dll"
-xcopy /E /Y "$(ProjectDir)bass\dlls" "$(appdata)\Corona Labs\Corona Simulator\Plugins\"</Command>
+      <Command>copy "$(OutDir)$(TargetName).dll" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\$(TargetName).dll"
+xcopy /E /Y "$(ProjectDir)bass\dlls" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass"
+cd "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\"
+call make_plugin.bat
+rmdir /S /Q "C:\Users\Danny\AppData\Roaming\Corona Labs\Corona Simulator\Plugins"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>
@@ -160,8 +164,9 @@ xcopy /E /Y "$(ProjectDir)bass\dlls" "$(appdata)\Corona Labs\Corona Simulator\Pl
     </Link>
     <PostBuildEvent />
     <PostBuildEvent>
-      <Command>copy "$(OutDir)$(TargetName).dll" "$(appdata)\Corona Labs\Corona Simulator\Plugins\$(TargetName).dll"
-xcopy /E /Y "$(ProjectDir)bass\dlls" "$(appdata)\Corona Labs\Corona Simulator\Plugins\"</Command>
+      <Command>copy "$(OutDir)$(TargetName).dll" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\$(TargetName).dll"
+xcopy /E /Y "$(ProjectDir)bass\dlls" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass"
+start C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\make-plugin.bat</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>

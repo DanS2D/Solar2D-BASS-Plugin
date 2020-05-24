@@ -48,7 +48,10 @@ namespace Corona
 		static int isChannelActive(lua_State* L);
 		static int isChannelPaused(lua_State* L);
 		static int isChannelPlaying(lua_State* L);
+		static int isChipTunesPluginLoaded(lua_State* L);
 		static int load(lua_State* L);
+		static int loadUrl(lua_State* L);
+		static int loadChipTunesPlugin(lua_State* L);
 		static int pause(lua_State* L);
 		static int play(lua_State* L);
 		static int resume(lua_State* L);
@@ -57,6 +60,7 @@ namespace Corona
 		static int setDevice(lua_State* L);
 		static int setVolume(lua_State* L);
 		static int stop(lua_State* L);
+		static int unloadChipTunesPlugin(lua_State* L);
 	};
 
 	// ----------------------------------------------------------------------------
@@ -100,7 +104,10 @@ namespace Corona
 				{ "isChannelActive", isChannelActive },
 				{ "isChannelPaused", isChannelPaused },
 				{ "isChannelPlaying", isChannelPlaying },
+				{ "isChipTunesPluginLoaded", isChipTunesPluginLoaded },
 				{ "load", load },
+				{ "loadUrl", loadUrl },
+				{ "loadChipTunesPlugin", loadChipTunesPlugin},
 				{ "pause", pause },
 				{ "play", play },
 				{ "resume", resume },
@@ -109,6 +116,7 @@ namespace Corona
 				{ "setDevice", setDevice },
 				{ "setVolume", setVolume },
 				{ "stop", stop },
+				{ "unloadChipTunesPlugin", unloadChipTunesPlugin},
 				{ NULL, NULL }
 			};
 
@@ -172,6 +180,9 @@ namespace Corona
 
 		BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
 		BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
+		BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1); // enable playlist processing
+		BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 0); // disable BASS_StreamCreateURL pre-buffering
+		BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, 0);
 
 		if (!BASS_Init(1, 44100, 0, 0, NULL))
 		{
@@ -185,7 +196,6 @@ namespace Corona
 		spx = BASS_PluginLoad("bass_spx.dll", 0);
 		flac = BASS_PluginLoad("bassflac.dll", 0);
 		opus = BASS_PluginLoad("bassopus.dll", 0);
-		zxtune = BASS_PluginLoad("basszxtune.dll", 0);
 #endif
 
 		return 1;
@@ -457,6 +467,12 @@ namespace Corona
 		return 1;
 	}
 
+	int BassLibrary::isChipTunesPluginLoaded(lua_State* L)
+	{
+		lua_pushboolean(L, BASS_PluginGetInfo(zxtune) != NULL);
+		return 1;
+	}
+
 	int BassLibrary::load(lua_State* L)
 	{
 		DWORD channel;
@@ -505,6 +521,51 @@ namespace Corona
 
 		lua_pushnil(L);
 		return 1;
+	}
+
+	int BassLibrary::loadUrl(lua_State* L)
+	{
+		DWORD channel;
+		const char* url;
+		std::string fullUrl;
+
+		if (lua_isstring(L, 1))
+		{
+			url = lua_tostring(L, 1);
+		}
+		else
+		{
+			CoronaLuaError(L, "bass.loadUrl() url (string) expected, got: %s", lua_typename(L, 1));
+			lua_pushnil(L);
+			return 1;
+		}
+
+		fullUrl = url;
+		std::wstring utf16Url = utf8_to_utf16(fullUrl);
+
+		if (channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0))
+		{
+			lua_pushnumber(L, channel);
+			return 1;
+		}
+		else
+		{
+			CoronaLuaWarning(L, "bass.loadUrl() couldn't create stream for url: %ls", utf16Url.c_str());
+			lua_pushnil(L);
+			return 1;
+		}
+
+		lua_pushnil(L);
+		return 1;
+	}
+
+	int BassLibrary::loadChipTunesPlugin(lua_State* L)
+	{
+#ifdef _WIN32
+		zxtune = BASS_PluginLoad("basszxtune.dll", 0);
+#endif
+
+		return 0;
 	}
 
 	int BassLibrary::pause(lua_State* L)
@@ -618,6 +679,16 @@ namespace Corona
 		DWORD channel = GetChannel(L, 1, "bass.stop() channel (number) expected");
 
 		BASS_ChannelStop(channel);
+
+		return 0;
+	}
+
+	int BassLibrary::unloadChipTunesPlugin(lua_State* L)
+	{
+		if (BASS_PluginGetInfo(zxtune) != NULL) {
+			BASS_PluginFree(zxtune);
+			zxtune = NULL;
+		}
 
 		return 0;
 	}

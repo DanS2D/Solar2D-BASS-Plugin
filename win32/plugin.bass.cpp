@@ -68,6 +68,7 @@ namespace Corona
 	// This corresponds to the name of the library, e.g. [Lua] require "plugin.library"
 	const char BassLibrary::kName[] = "plugin.bass";
 	const char BassLibrary::kEventName[] = "bass";
+	HPLUGIN wma;
 	HPLUGIN ac3;
 	HPLUGIN ape;
 	HPLUGIN mpc;
@@ -136,6 +137,7 @@ namespace Corona
 		Self* library = (Self*)CoronaLuaToUserdata(L, 1);
 		if (library)
 		{
+			BASS_PluginFree(wma);
 			BASS_PluginFree(ac3);
 			BASS_PluginFree(ape);
 			BASS_PluginFree(mpc);
@@ -190,6 +192,7 @@ namespace Corona
 		}
 
 #ifdef _WIN32
+		wma = BASS_PluginLoad("basswma.dll", 0);
 		ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
 		ape = BASS_PluginLoad("bass_ape.dll", 0);
 		mpc = BASS_PluginLoad("bass_mpc.dll", 0);

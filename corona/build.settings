@@ -34,6 +34,11 @@ settings =
 		},
 	},
 
+	plugins =
+	{
+		["plugin.bass"] = {publisherId = "com.revolt64"},
+	},
+
 	--
 	-- Project section
 	--

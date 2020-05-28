@@ -24,6 +24,8 @@ local function onAudioComplete(event)
 	end
 end
 
+Runtime:addEventListener("bass", onAudioComplete)
+
 local typeSegmentedControl =
 	widget.newSegmentedControl(
 	{
@@ -38,7 +40,8 @@ local typeSegmentedControl =
 		defaultSegment = 1,
 		onPress = function(event)
 			currentAudioIndex = event.target.segmentNumber
-			local currentVolume = bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
+			local currentVolume = bass.getVolume()
+			--bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
 			volumeSlider:setValue(currentVolume * 100)
 			toggleLoopSwitch:setState({isOn = musicSamples[currentAudioIndex].loop, isAnimated = false})
 		end
@@ -53,12 +56,13 @@ local loadButton =
 		label = "Load",
 		onPress = function(event)
 			musicSamples[currentAudioIndex].channel = bass.load(musicSamples[currentAudioIndex].fileName, resourcePath)
-			local currentVolume = bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
+			local currentVolume = bass.getVolume()
+			--bass.getVolume({channel = musicSamples[currentAudioIndex].channel})
 			volumeSlider:setValue(currentVolume * 100)
 
-			for k, v in pairs(bass.getTags(musicSamples[currentAudioIndex].channel)) do
-				print(k, v)
-			end
+			--for k, v in pairs(bass.getTags(musicSamples[currentAudioIndex].channel)) do
+			--	print(k, v)
+			--end
 
 			print("audio duration: ", bass.getDuration(musicSamples[currentAudioIndex].channel))
 		end
@@ -72,7 +76,7 @@ local playButton =
 	{
 		label = "Play",
 		onPress = function(event)
-			bass.play(musicSamples[currentAudioIndex].channel, {onComplete = onAudioComplete})
+			bass.play(musicSamples[currentAudioIndex].channel)
 			--bass.fadeOut(channel, 5000)
 
 			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
@@ -153,7 +157,7 @@ toggleLoopSwitch =
 		onPress = function(event)
 			local target = event.target
 
-			bass.update(musicSamples[currentAudioIndex].channel, {loop = target.isOn})
+			--bass.update(musicSamples[currentAudioIndex].channel, {loop = target.isOn})
 			musicSamples[currentAudioIndex].loop = target.isOn
 			print("is channel playing?: ", bass.isChannelPlaying(musicSamples[currentAudioIndex].channel))
 		end
@@ -171,10 +175,10 @@ volumeSlider =
 		listener = function(event)
 			local value = event.value
 
-			--bass.setVolume(value / 100)
+			bass.setVolume(value / 100)
 			--print("global vol:", bass.getVolume())
 
-			bass.setVolume(value / 100, {channel = musicSamples[currentAudioIndex].channel})
+			--bass.setVolume(value / 100, {channel = musicSamples[currentAudioIndex].channel})
 			--print("channel vol:", bass.getVolume({channel = channel}))
 		end
 	}

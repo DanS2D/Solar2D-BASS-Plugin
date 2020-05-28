@@ -1,22 +1,34 @@
-#include "bass.h"
+#include <stdio.h>
+#include <string.h>
+#include <codecvt> 
+#include <vector>
+#include <thread>
 #include "CoronaAssert.h"
 #include "CoronaEvent.h"
 #include "CoronaLua.h"
 #include "CoronaLibrary.h"
-#include <windows.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <map>
-#include <string>
-#include <codecvt> 
-#include <vector>
+#include "bass.h"
+#include "readerwriterqueue.h"
 
 // ----------------------------------------------------------------------------
+using namespace std;
 
 namespace Corona
 {
 	// ----------------------------------------------------------------------------
+
+	struct AudioData
+	{
+		HSYNC handle;
+	};
+
+	struct EventData
+	{
+		DWORD channel;
+		const char* phase;
+		bool completed;
+		bool started;
+	};
 
 	class BassLibrary
 	{
@@ -26,6 +38,9 @@ namespace Corona
 	public:
 		static const char kName[];
 		static const char kEventName[];
+		//static map<DWORD, AudioData> audioMap;
+		static EventData eventData;
+		static moodycamel::ReaderWriterQueue<EventData> data;
 
 	public:
 		static int Open(lua_State* L);
@@ -61,6 +76,7 @@ namespace Corona
 		static int setVolume(lua_State* L);
 		static int stop(lua_State* L);
 		static int unloadChipTunesPlugin(lua_State* L);
+		static int processFrame(lua_State* L);
 	};
 
 	// ----------------------------------------------------------------------------
@@ -68,14 +84,17 @@ namespace Corona
 	// This corresponds to the name of the library, e.g. [Lua] require "plugin.library"
 	const char BassLibrary::kName[] = "plugin.bass";
 	const char BassLibrary::kEventName[] = "bass";
-	HPLUGIN wma;
-	HPLUGIN ac3;
-	HPLUGIN ape;
-	HPLUGIN mpc;
-	HPLUGIN spx;
-	HPLUGIN flac;
-	HPLUGIN opus;
-	HPLUGIN zxtune;
+	EventData BassLibrary::eventData = {};
+	moodycamel::ReaderWriterQueue<EventData> BassLibrary::data(1);
+	static int callbackRef = 0;
+	static HPLUGIN wma;
+	static HPLUGIN ac3;
+	static HPLUGIN ape;
+	static HPLUGIN mpc;
+	static HPLUGIN spx;
+	static HPLUGIN flac;
+	static HPLUGIN opus;
+	static HPLUGIN zxtune;
 
 	int BassLibrary::Open(lua_State* L)
 	{
@@ -127,6 +146,27 @@ namespace Corona
 				CoronaLuaPushUserdata(L, library, kMetatableName);
 				luaL_openlib(L, kName, kFunctions, 1); // leave "library" on top of stack
 			}
+
+			// Now invoke above from C:
+			// Lua stack order (from lowest index to highest):
+			//   f
+			//   Runtime
+			//   "enterFrame"
+			//   ProcessFrame (closure)
+			{
+				CoronaLuaPushRuntime(L); // push 'Runtime'
+				lua_getfield(L, -1, "addEventListener"); // push 'f', i.e. Runtime.addEventListener
+				lua_insert(L, -2); // swap so 'f' is below 'Runtime'
+				lua_pushstring(L, "enterFrame");
+
+				// Push ProcessFrame as closure so it has access
+				lua_pushlightuserdata(L, library);
+				lua_pushcclosure(L, &processFrame, 1);
+
+				lua_pushvalue(L, -1);
+				callbackRef = luaL_ref(L, LUA_REGISTRYINDEX); // r = clo
+			}
+			CoronaLuaDoCall(L, 3, 0);
 		}
 
 		return 1;
@@ -154,6 +194,22 @@ namespace Corona
 			opus = NULL;
 			zxtune = NULL;
 			BASS_Free();
+
+			CoronaLuaPushRuntime(L); // push 'Runtime'
+
+			if (lua_type(L, -1) == LUA_TTABLE)
+			{
+				lua_getfield(L, -1, "removeEventListener"); // push 'f', i.e. Runtime.addEventListener
+				lua_insert(L, -2);							// swap so 'f' is below 'Runtime'
+				lua_pushstring(L, "enterFrame");
+				lua_rawgeti(L, LUA_REGISTRYINDEX, callbackRef); // pushes closure
+				CoronaLuaDoCall(L, 3, 0);
+				luaL_unref(L, LUA_REGISTRYINDEX, callbackRef);
+			}
+			else
+			{
+				lua_pop(L, 1); // pop nil
+			}
 
 			delete library;
 		}
@@ -278,17 +334,53 @@ namespace Corona
 		return utf16;
 	}
 
+	void CALLBACK AudioCompleteCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
+	{
+		thread writer([&]()
+			{
+				BassLibrary::eventData.channel = channel;
+				BassLibrary::eventData.phase = "playback";
+				BassLibrary::eventData.completed = true;
+				BassLibrary::eventData.started = false;
+
+				BassLibrary::data.enqueue(BassLibrary::eventData);
+				this_thread::sleep_for(chrono::milliseconds(10));
+			});
+
+		writer.join();
+	}
+
+	void CALLBACK AudioSlideCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
+	{
+		BASS_ChannelRemoveSync(channel, handle);
+		BASS_ChannelStop(channel);
+
+		thread writer([&]()
+			{
+				BassLibrary::eventData.channel = channel;
+				BassLibrary::eventData.phase = "slide";
+				BassLibrary::eventData.completed = true;
+				BassLibrary::eventData.started = false;
+
+				BassLibrary::data.enqueue(BassLibrary::eventData);
+				this_thread::sleep_for(chrono::milliseconds(10));
+			});
+
+		writer.join();
+	}
+
 	static DWORD GetChannel(lua_State* L, int index, const char* errorMessage)
 	{
 		DWORD channel;
 
 		if (lua_isnumber(L, index))
 		{
-			channel = lua_tonumber(L, index);
+			channel = (DWORD)lua_tonumber(L, index);
 		}
 		else
 		{
 			CoronaLuaError(L, "%s, got: %s", errorMessage, lua_typename(L, index));
+			lua_pushnil(L);
 		}
 
 		return channel;
@@ -307,13 +399,14 @@ namespace Corona
 	int BassLibrary::fadeIn(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.fadeIn() channel (number) expected");
-		float time = 0;
+		DWORD time = 0;
 
 		if (lua_isnumber(L, 2))
 		{
-			time = (float)lua_tonumber(L, 2);
+			time = (DWORD)lua_tonumber(L, 2);
 			BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, 0);
 			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 1.0, time);
+			//BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
 		}
 		else
 		{
@@ -326,12 +419,13 @@ namespace Corona
 	int BassLibrary::fadeOut(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.fadeOut() channel (number) expected");
-		float time = 0;
+		DWORD time = 0;
 
 		if (lua_isnumber(L, 2))
 		{
-			time = (float)lua_tonumber(L, 2);
+			time = (DWORD)lua_tonumber(L, 2);
 			BASS_ChannelSlideAttribute(channel, BASS_ATTRIB_VOL | BASS_SLIDE_LOG, 0, time);
+			BASS_ChannelSetSync(channel, BASS_SYNC_SLIDE, 0, AudioSlideCallback, 0);
 		}
 		else
 		{
@@ -358,6 +452,8 @@ namespace Corona
 				lua_rawseti(L, -2, i);
 			}
 		}
+
+		lua_rawset(L, -3);
 
 		return 1;
 	}
@@ -389,22 +485,22 @@ namespace Corona
 	int BassLibrary::getPlaybackTime(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.getPlaybackTime() channel (number) expected");
-		DWORD length = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
-		DWORD position = BASS_ChannelGetPosition(channel, BASS_POS_BYTE);
-		DWORD duration = BASS_ChannelBytes2Seconds(channel, length);
-		DWORD elapsed = BASS_ChannelBytes2Seconds(channel, position);
+		QWORD length = BASS_ChannelGetLength(channel, BASS_POS_BYTE);
+		QWORD position = BASS_ChannelGetPosition(channel, BASS_POS_BYTE);
+		double duration = BASS_ChannelBytes2Seconds(channel, length);
+		double elapsed = BASS_ChannelBytes2Seconds(channel, position);
 
 		lua_newtable(L);
 		lua_newtable(L);
 		lua_pushnumber(L, elapsed / 60);
 		lua_setfield(L, -2, "minutes");
-		lua_pushnumber(L, elapsed % 60);
+		lua_pushnumber(L, (int)elapsed % 60);
 		lua_setfield(L, -2, "seconds");
 		lua_setfield(L, -2, "elapsed");
 		lua_newtable(L);
 		lua_pushnumber(L, duration / 60);
 		lua_setfield(L, -2, "minutes");
-		lua_pushnumber(L, duration % 60);
+		lua_pushnumber(L, (int)duration % 60);
 		lua_setfield(L, -2, "seconds");
 		lua_setfield(L, -2, "duration");
 
@@ -416,15 +512,11 @@ namespace Corona
 		float volume = 0;
 		DWORD channel;
 
-		if (lua_istable(L, 1))
+		if (lua_isnumber(L, 1))
 		{
-			lua_getfield(L, 1, "channel");
-			if (lua_isnumber(L, -1))
-			{
-				channel = GetChannel(L, -1, "bass.getVolume() options.channel (number) expected");
-				BASS_ChannelGetAttribute(channel, BASS_ATTRIB_VOL, &volume);
-			}
-			lua_pop(L, 1);
+
+			channel = GetChannel(L, -1, "bass.getVolume() channel (number) expected");
+			BASS_ChannelGetAttribute(channel, BASS_ATTRIB_VOL, &volume);
 		}
 		else
 		{
@@ -587,9 +679,26 @@ namespace Corona
 		if (!BASS_ChannelPlay(channel, FALSE))
 		{
 			CoronaLuaWarning(L, "bass.play() couldn't play audio for channel: %lu", channel);
+			lua_pushnil(L);
+			return 0;
 		}
 
+		thread writer([&]()
+			{
+				BassLibrary::eventData.channel = channel;
+				BassLibrary::eventData.phase = "playback";
+				BassLibrary::eventData.completed = false;
+				BassLibrary::eventData.started = true;
+
+				BassLibrary::data.enqueue(BassLibrary::eventData);
+				this_thread::sleep_for(chrono::milliseconds(10));
+			});
+
+		writer.join();
+
+		BASS_ChannelSetSync(channel, BASS_SYNC_END, 0, AudioCompleteCallback, 0);
 		lua_pushnumber(L, channel);
+
 		return 1;
 	}
 
@@ -633,7 +742,7 @@ namespace Corona
 
 		if (lua_isnumber(L, 1))
 		{
-			deviceIndex = lua_tonumber(L, 1);
+			deviceIndex = (int)lua_tonumber(L, 1);
 			BASS_Free();
 
 			if (!BASS_Init(deviceIndex, 44100, 0, 0, NULL))
@@ -659,15 +768,10 @@ namespace Corona
 			volume = (float)lua_tonumber(L, 1);
 		}
 
-		if (lua_istable(L, 2))
+		if (lua_isnumber(L, 2))
 		{
-			lua_getfield(L, 2, "channel");
-			if (lua_isnumber(L, -1))
-			{
-				channel = GetChannel(L, -1, "bass.setVolume() options.channel (number) expected");
-				BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, volume);
-			}
-			lua_pop(L, 1);
+			channel = GetChannel(L, -1, "bass.setVolume() channel (number) expected");
+			BASS_ChannelSetAttribute(channel, BASS_ATTRIB_VOL, volume);
 		}
 		else
 		{
@@ -680,7 +784,6 @@ namespace Corona
 	int BassLibrary::stop(lua_State* L)
 	{
 		DWORD channel = GetChannel(L, 1, "bass.stop() channel (number) expected");
-
 		BASS_ChannelStop(channel);
 
 		return 0;
@@ -688,10 +791,48 @@ namespace Corona
 
 	int BassLibrary::unloadChipTunesPlugin(lua_State* L)
 	{
-		if (BASS_PluginGetInfo(zxtune) != NULL) {
+		if (BASS_PluginGetInfo(zxtune) != NULL)
+		{
 			BASS_PluginFree(zxtune);
 			zxtune = NULL;
 		}
+
+		return 0;
+	}
+
+	int BassLibrary::processFrame(lua_State* L)
+	{
+		thread reader([&]()
+			{
+				EventData eData;
+				bool canDequeue = BassLibrary::data.try_dequeue(eData);
+
+				if (canDequeue)
+				{
+					CoronaLuaPushRuntime(L); // push 'Runtime'
+					lua_getfield(L, -1, "dispatchEvent"); // push 'f', i.e. Runtime.dispatchEvent
+					lua_insert(L, -2); // swap so 'f' is below 'Runtime'
+
+					CoronaLuaNewEvent(L, BassLibrary::kEventName);
+
+					lua_pushnumber(L, eData.channel);
+					lua_setfield(L, -2, "channel");
+
+					lua_pushstring(L, eData.phase);
+					lua_setfield(L, -2, "phase");
+
+					lua_pushboolean(L, eData.completed);
+					lua_setfield(L, -2, "completed");
+
+					lua_pushboolean(L, eData.started);
+					lua_setfield(L, -2, "started");
+
+					lua_pushvalue(L, -3);
+					lua_call(L, 3, 0);  // Call Runtime.dispatchEvent() with 3 arguments (runtime, eventName, event table)
+				}
+			});
+
+		reader.join();
 
 		return 0;
 	}
@@ -707,4 +848,3 @@ int luaopen_plugin_bass(lua_State* L)
 {
 	return Corona::BassLibrary::Open(L);
 }
-

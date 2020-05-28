@@ -15,10 +15,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="plugin.bass.cpp" />
+    <ClInclude Include="..\shared\atomicops.h" />
+    <ClInclude Include="..\shared\bass\headers\bass.h" />
+    <ClInclude Include="..\shared\readerwriterqueue.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bass\headers\bass.h" />
+    <ClCompile Include="..\shared\plugin.bass.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{79F0CACC-457B-4A25-BC54-81277688C361}</ProjectGuid>
@@ -105,7 +107,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(CORONA_ROOT)/Corona/shared/include/Corona;$(CORONA_ROOT)/Corona/shared/include/lua;%(AdditionalIncludeDirectories);../shared/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(CORONA_ROOT)/Corona/shared/include/Corona;$(CORONA_ROOT)/Corona/shared/include/lua;%(AdditionalIncludeDirectories);C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\shared;C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\shared\bass\headers;../shared/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions);LUA_BUILD_AS_DLL;LUA_LIB;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -113,7 +115,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(CORONA_ROOT)\Corona\win\lib\*.lib;$(ProjectDir)bass\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(CORONA_ROOT)\Corona\win\lib\*.lib;$(ProjectDir)..\shared\bass\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -127,7 +129,7 @@
     <PostBuildEvent />
     <PostBuildEvent>
       <Command>copy "$(OutDir)$(TargetName).dll" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\$(TargetName).dll"
-xcopy /E /Y "$(ProjectDir)bass\dlls" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass"
+xcopy /E /Y "$(ProjectDir)..\shared\bass\dlls" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass"
 cd "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\"
 call make_plugin.bat
 rmdir /S /Q "C:\Users\Danny\AppData\Roaming\Corona Labs\Corona Simulator\Plugins"</Command>

@@ -336,18 +336,12 @@ namespace Corona
 
 	void CALLBACK AudioCompleteCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
 	{
-		thread writer([&]()
-			{
-				BassLibrary::eventData.channel = channel;
-				BassLibrary::eventData.phase = "playback";
-				BassLibrary::eventData.completed = true;
-				BassLibrary::eventData.started = false;
+		BassLibrary::eventData.channel = channel;
+		BassLibrary::eventData.phase = "playback";
+		BassLibrary::eventData.completed = true;
+		BassLibrary::eventData.started = false;
 
-				BassLibrary::data.enqueue(BassLibrary::eventData);
-				this_thread::sleep_for(chrono::milliseconds(10));
-			});
-
-		writer.join();
+		BassLibrary::data.enqueue(BassLibrary::eventData);
 	}
 
 	void CALLBACK AudioSlideCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
@@ -355,18 +349,12 @@ namespace Corona
 		BASS_ChannelRemoveSync(channel, handle);
 		BASS_ChannelStop(channel);
 
-		thread writer([&]()
-			{
-				BassLibrary::eventData.channel = channel;
-				BassLibrary::eventData.phase = "slide";
-				BassLibrary::eventData.completed = true;
-				BassLibrary::eventData.started = false;
+		BassLibrary::eventData.channel = channel;
+		BassLibrary::eventData.phase = "slide";
+		BassLibrary::eventData.completed = true;
+		BassLibrary::eventData.started = false;
 
-				BassLibrary::data.enqueue(BassLibrary::eventData);
-				this_thread::sleep_for(chrono::milliseconds(10));
-			});
-
-		writer.join();
+		BassLibrary::data.enqueue(BassLibrary::eventData);
 	}
 
 	static DWORD GetChannel(lua_State* L, int index, const char* errorMessage)
@@ -683,18 +671,11 @@ namespace Corona
 			return 0;
 		}
 
-		thread writer([&]()
-			{
-				BassLibrary::eventData.channel = channel;
-				BassLibrary::eventData.phase = "playback";
-				BassLibrary::eventData.completed = false;
-				BassLibrary::eventData.started = true;
-
-				BassLibrary::data.enqueue(BassLibrary::eventData);
-				this_thread::sleep_for(chrono::milliseconds(10));
-			});
-
-		writer.join();
+		BassLibrary::eventData.channel = channel;
+		BassLibrary::eventData.phase = "playback";
+		BassLibrary::eventData.completed = false;
+		BassLibrary::eventData.started = true;
+		BassLibrary::data.enqueue(BassLibrary::eventData);
 
 		BASS_ChannelSetSync(channel, BASS_SYNC_END, 0, AudioCompleteCallback, 0);
 		lua_pushnumber(L, channel);
@@ -802,37 +783,35 @@ namespace Corona
 
 	int BassLibrary::processFrame(lua_State* L)
 	{
-		thread reader([&]()
+		if (BassLibrary::data.size_approx() > 0)
+		{
+			EventData eData;
+			bool canDequeue = BassLibrary::data.try_dequeue(eData);
+
+			if (canDequeue)
 			{
-				EventData eData;
-				bool canDequeue = BassLibrary::data.try_dequeue(eData);
+				CoronaLuaPushRuntime(L); // push 'Runtime'
+				lua_getfield(L, -1, "dispatchEvent"); // push 'f', i.e. Runtime.dispatchEvent
+				lua_insert(L, -2); // swap so 'f' is below 'Runtime'
 
-				if (canDequeue)
-				{
-					CoronaLuaPushRuntime(L); // push 'Runtime'
-					lua_getfield(L, -1, "dispatchEvent"); // push 'f', i.e. Runtime.dispatchEvent
-					lua_insert(L, -2); // swap so 'f' is below 'Runtime'
+				CoronaLuaNewEvent(L, BassLibrary::kEventName);
 
-					CoronaLuaNewEvent(L, BassLibrary::kEventName);
+				lua_pushnumber(L, eData.channel);
+				lua_setfield(L, -2, "channel");
 
-					lua_pushnumber(L, eData.channel);
-					lua_setfield(L, -2, "channel");
+				lua_pushstring(L, eData.phase);
+				lua_setfield(L, -2, "phase");
 
-					lua_pushstring(L, eData.phase);
-					lua_setfield(L, -2, "phase");
+				lua_pushboolean(L, eData.completed);
+				lua_setfield(L, -2, "completed");
 
-					lua_pushboolean(L, eData.completed);
-					lua_setfield(L, -2, "completed");
+				lua_pushboolean(L, eData.started);
+				lua_setfield(L, -2, "started");
 
-					lua_pushboolean(L, eData.started);
-					lua_setfield(L, -2, "started");
-
-					lua_pushvalue(L, -3);
-					lua_call(L, 3, 0);  // Call Runtime.dispatchEvent() with 3 arguments (runtime, eventName, event table)
-				}
-			});
-
-		reader.join();
+				lua_pushvalue(L, -3);
+				lua_call(L, 3, 0);  // Call Runtime.dispatchEvent() with 3 arguments (runtime, eventName, event table)
+			}
+		}
 
 		return 0;
 	}

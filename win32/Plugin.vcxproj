@@ -27,11 +27,12 @@
     <RootNamespace>Plugin</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <ProjectName>Plugin</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v120_xp</PlatformToolset>
+    <PlatformToolset>v141_xp</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -72,7 +73,7 @@
     <OutDir>$(Configuration)\</OutDir>
     <TargetName>plugin_bass</TargetName>
     <LibraryPath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\win32\bass\libs;$(LibraryPath)</LibraryPath>
-    <IncludePath>C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\BASSPlugin\win32\bass\headers;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\shared\;$(ProjectDir)..\shared\bass;$(ProjectDir)..\shared\bass\headers;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Dbg|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -128,9 +129,9 @@
     </Link>
     <PostBuildEvent />
     <PostBuildEvent>
-      <Command>copy "$(OutDir)$(TargetName).dll" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\$(TargetName).dll"
-xcopy /E /Y "$(ProjectDir)..\shared\bass\dlls" "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass"
-cd "C:\Users\Danny\Programming\Projects\CoronaSDK\Plugins\distribution\bass\"
+      <Command>copy "$(OutDir)$(TargetName).dll" "C:\Users\Danny\Programming\Projects\Solar2D\Plugins\distribution\bass\$(TargetName).dll"
+xcopy /E /Y "$(ProjectDir)..\shared\bass\dlls" "C:\Users\Danny\Programming\Projects\Solar2D\Plugins\distribution\bass"
+cd "C:\Users\Danny\Programming\Projects\Solar2D\Plugins\distribution\bass\"
 call make_plugin.bat
 rmdir /S /Q "C:\Users\Danny\AppData\Roaming\Corona Labs\Corona Simulator\Plugins"</Command>
     </PostBuildEvent>

@@ -14,12 +14,12 @@ using namespace std;
 
 class UTFString
 {
-    public:
-        #ifdef _WIN32
-            static wstring Convert(const string& utf8);
-        #else
-            static string Convert(string utf8);
-        #endif
+	public:
+		#ifdef _WIN32
+			static wstring Convert(const string& utf8);
+		#else
+			static string Convert(string utf8);
+		#endif
 };
 
 #endif /* utfString_hpp */

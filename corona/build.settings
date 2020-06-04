@@ -39,6 +39,11 @@ settings =
 		["plugin.bass"] = {publisherId = "com.revolt64"},
 	},
 
+	build =
+	{
+ 		neverStripDebugInfo = true,
+	},
+
 	--
 	-- Project section
 	--

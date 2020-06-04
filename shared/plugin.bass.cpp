@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <codecvt> 
-#include <vector>
-#include <thread>
 #include "CoronaAssert.h"
 #include "CoronaEvent.h"
 #include "CoronaLua.h"
 #include "CoronaLibrary.h"
+#include "libraryPath.hpp"
+#include "utfString.hpp"
 #include "bass.h"
 #include "readerwriterqueue.h"
 
@@ -16,11 +15,6 @@ using namespace std;
 namespace Corona
 {
 	// ----------------------------------------------------------------------------
-
-	struct AudioData
-	{
-		HSYNC handle;
-	};
 
 	struct EventData
 	{
@@ -38,7 +32,6 @@ namespace Corona
 	public:
 		static const char kName[];
 		static const char kEventName[];
-		//static map<DWORD, AudioData> audioMap;
 		static EventData eventData;
 		static moodycamel::ReaderWriterQueue<EventData> data;
 
@@ -49,7 +42,7 @@ namespace Corona
 
 	protected:
 		BassLibrary();
-		bool Initialize(void* platformContext);
+		bool Initialize(lua_State *L, void* platformContext);
 
 	public:
 		static int dispose(lua_State* L);
@@ -108,7 +101,7 @@ namespace Corona
 		// Set library as upvalue for each library function
 		Self* library = new Self;
 
-		if (library->Initialize(platformContext))
+		if (library->Initialize(L, platformContext))
 		{
 			// Functions in library
 			static const luaL_Reg kFunctions[] =
@@ -228,111 +221,46 @@ namespace Corona
 	{
 	}
 
-	bool BassLibrary::Initialize(void* platformContext)
+	bool BassLibrary::Initialize(lua_State *L, void* platformContext)
 	{
 		if (HIWORD(BASS_GetVersion()) != BASSVERSION)
-		{
-			printf("ERROR: plugin.bass - An incorrect version of BASS.DLL was loaded\n");
-			return 0;
-		}
+        {
+            printf("ERROR: plugin.bass - An incorrect version of BASS.DLL was loaded\n");
+            return 0;
+        }
 
-		BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
-		BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
-		BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1); // enable playlist processing
-		BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 0); // disable BASS_StreamCreateURL pre-buffering
-		BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, 0);
+        BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
+        BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
+        BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1); // enable playlist processing
+        BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 0); // disable BASS_StreamCreateURL pre-buffering
+        BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, 0);
 
-		if (!BASS_Init(1, 44100, 0, 0, NULL))
-		{
-			printf("ERROR: plugin.bass - Can't initialize device\n");
-		}
-
-#ifdef _WIN32
-		wma = BASS_PluginLoad("basswma.dll", 0);
-		ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
-		ape = BASS_PluginLoad("bass_ape.dll", 0);
-		mpc = BASS_PluginLoad("bass_mpc.dll", 0);
-		spx = BASS_PluginLoad("bass_spx.dll", 0);
-		flac = BASS_PluginLoad("bassflac.dll", 0);
-		opus = BASS_PluginLoad("bassopus.dll", 0);
-#endif
+        if (!BASS_Init(1, 44100, 0, 0, NULL))
+        {
+            printf("ERROR: plugin.bass - Can't initialize device\n");
+        }
+        
+        #ifdef _WIN32
+            wma = BASS_PluginLoad("basswma.dll", 0);
+            ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
+            ape = BASS_PluginLoad("bass_ape.dll", 0);
+            mpc = BASS_PluginLoad("bass_mpc.dll", 0);
+            spx = BASS_PluginLoad("bass_spx.dll", 0);
+            flac = BASS_PluginLoad("bassflac.dll", 0);
+            opus = BASS_PluginLoad("bassopus.dll", 0);
+        #else
+            ac3 = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ac3.dylib").c_str(), 0);
+            ape = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ape.dylib").c_str(), 0);
+            mpc = BASS_PluginLoad(LibraryPath::Get(L, "libbass_mpc.dylib").c_str(), 0);
+            spx = BASS_PluginLoad(LibraryPath::Get(L, "libbass_spx.dylib").c_str(), 0);
+            flac = BASS_PluginLoad(LibraryPath::Get(L, "libbassflac.dylib").c_str(), 0);
+            opus = BASS_PluginLoad(LibraryPath::Get(L, "libbassopus.dylib").c_str(), 0);
+        #endif
 
 		return 1;
 	}
 
 	// ---------------------- HELPER FUNCTIONS -------------------------------------
-
-	static std::wstring utf8_to_utf16(const std::string& utf8)
-	{
-		std::vector<unsigned long> unicode;
-		size_t i = 0;
-		while (i < utf8.size())
-		{
-			unsigned long uni;
-			size_t todo;
-			bool error = false;
-			unsigned char ch = utf8[i++];
-			if (ch <= 0x7F)
-			{
-				uni = ch;
-				todo = 0;
-			}
-			else if (ch <= 0xBF)
-			{
-				throw std::logic_error("not a UTF-8 string");
-			}
-			else if (ch <= 0xDF)
-			{
-				uni = ch & 0x1F;
-				todo = 1;
-			}
-			else if (ch <= 0xEF)
-			{
-				uni = ch & 0x0F;
-				todo = 2;
-			}
-			else if (ch <= 0xF7)
-			{
-				uni = ch & 0x07;
-				todo = 3;
-			}
-			else
-			{
-				throw std::logic_error("not a UTF-8 string");
-			}
-			for (size_t j = 0; j < todo; ++j)
-			{
-				if (i == utf8.size())
-					throw std::logic_error("not a UTF-8 string");
-				unsigned char ch = utf8[i++];
-				if (ch < 0x80 || ch > 0xBF)
-					throw std::logic_error("not a UTF-8 string");
-				uni <<= 6;
-				uni += ch & 0x3F;
-			}
-			if (uni >= 0xD800 && uni <= 0xDFFF)
-				throw std::logic_error("not a UTF-8 string");
-			if (uni > 0x10FFFF)
-				throw std::logic_error("not a UTF-8 string");
-			unicode.push_back(uni);
-		}
-		std::wstring utf16;
-		for (size_t i = 0; i < unicode.size(); ++i)
-		{
-			unsigned long uni = unicode[i];
-			if (uni <= 0xFFFF)
-			{
-				utf16 += (wchar_t)uni;
-			}
-			else
-			{
-				uni -= 0x10000;
-				utf16 += (wchar_t)((uni >> 10) + 0xD800);
-				utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
-			}
-		}
-		return utf16;
-	}
 
 	void CALLBACK AudioCompleteCallback(HSYNC handle, DWORD channel, DWORD data, void* user)
 	{
@@ -585,24 +513,34 @@ namespace Corona
 			return 1;
 		}
 
-		fullPath = filePath;
-		fullPath.append("\\");
-		fullPath.append(fileName);
-		std::wstring utf16Path = utf8_to_utf16(fullPath);
+        fullPath.append(filePath);
+        
+        #ifdef _WIN32
+            fullPath.append("\\");
+        #else
+            fullPath.append("/");
+        #endif
 
-		if (channel = BASS_StreamCreateFile(FALSE, utf16Path.c_str(), 0, 0, BASS_ASYNCFILE))
+		fullPath.append(fileName);
+        
+        #ifdef _WIN32
+            wstring utf16Path = UTFString::Convert(fullPath);
+        #else
+            string utf16Path = UTFString::Convert(fullPath);
+        #endif
+        
+        if ((channel = BASS_StreamCreateFile(FALSE, utf16Path.c_str(), 0, 0, BASS_ASYNCFILE)))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
 		}
 		else
 		{
-			CoronaLuaWarning(L, "bass.load() couldn't create stream for file: %s", fullPath.c_str());
+			CoronaLuaWarning(L, "bass.load() couldn't create stream for file: %s", utf16Path.c_str());
 			lua_pushnil(L);
 			return 1;
 		}
 
-		lua_pushnil(L);
 		return 1;
 	}
 
@@ -623,10 +561,15 @@ namespace Corona
 			return 1;
 		}
 
-		fullUrl = url;
-		std::wstring utf16Url = utf8_to_utf16(fullUrl);
-
-		if (channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0))
+        fullUrl.append(url);
+        
+        #ifdef _WIN32
+            wstring utf16Url = UTFString::Convert(fullPath);
+        #else
+            string utf16Url = UTFString::Convert(fullUrl);
+        #endif
+        
+        if ((channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0)))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
@@ -638,15 +581,16 @@ namespace Corona
 			return 1;
 		}
 
-		lua_pushnil(L);
 		return 1;
 	}
 
 	int BassLibrary::loadChipTunesPlugin(lua_State* L)
 	{
-#ifdef _WIN32
-		zxtune = BASS_PluginLoad("basszxtune.dll", 0);
-#endif
+        #ifdef _WIN32
+            zxtune = BASS_PluginLoad("basszxtune.dll", 0);
+        #else
+            zxtune = BASS_PluginLoad(LibraryPath::Get(L, "libbasszxtune.dylib").c_str(), 0);
+        #endif
 
 		return 0;
 	}

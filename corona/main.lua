@@ -2,11 +2,13 @@ local widget = require("widget")
 local bass = require("plugin.bass")
 widget.setTheme("widget_theme_android_holo_dark")
 
-local resourcePath = system.pathForFile("", system.ResourceDirectory)
+local resourcePath = system.pathForFile(nil, system.ResourceDirectory)
+--print(package.config)
+bass.loadChipTunesPlugin()
 
 local musicSamples = {
 	{channel = 0, fileName = "Thunder.wav", loop = false, fileType = "wav"},
-	{channel = 0, fileName = "Gentle-Rain.mp3", loop = false, fileType = "mp3"},
+	{channel = 0, fileName = "Gentle - Rain.mp3", loop = false, fileType = "mp3"},
 	{channel = 0, fileName = "Streets of Rage - The Street of Rage.vgz", loop = false, fileType = "vgz"},
 	{channel = 0, fileName = "Sample_BeeMoved_96kHz24bit.flac", loop = false, fileType = "flac"},
 	{channel = 0, fileName = "Sample_BeeMoved_48kHz16bit.m4a", loop = false, fileType = "aac"}

@@ -7,9 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CE28BCDC1D7CBAA300F30E15 /* plugin.tinyfiledialogs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE28BCD91D7CBAA300F30E15 /* plugin.tinyfiledialogs.cpp */; };
-		CE28BCDD1D7CBAA300F30E15 /* tinyfiledialogs.c in Sources */ = {isa = PBXBuildFile; fileRef = CE28BCDA1D7CBAA300F30E15 /* tinyfiledialogs.c */; };
-		CE28BCDE1D7CBAA300F30E15 /* tinyfiledialogs.h in Headers */ = {isa = PBXBuildFile; fileRef = CE28BCDB1D7CBAA300F30E15 /* tinyfiledialogs.h */; };
+		3035C1F92488979400E4D626 /* readerwriterqueue.h in Headers */ = {isa = PBXBuildFile; fileRef = 3035C1F52488979400E4D626 /* readerwriterqueue.h */; };
+		3035C1FA2488979400E4D626 /* plugin.bass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3035C1F62488979400E4D626 /* plugin.bass.cpp */; };
+		3035C1FB2488979400E4D626 /* atomicops.h in Headers */ = {isa = PBXBuildFile; fileRef = 3035C1F82488979400E4D626 /* atomicops.h */; };
+		3035C1FD248897EA00E4D626 /* bass.h in Headers */ = {isa = PBXBuildFile; fileRef = 3035C1FC248897EA00E4D626 /* bass.h */; };
+		3035C1FF248897FE00E4D626 /* libbass.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 3035C1FE248897FE00E4D626 /* libbass.dylib */; };
+		30710598248969C3000AF77D /* libraryPath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 30710596248969C3000AF77D /* libraryPath.cpp */; };
+		30710599248969C3000AF77D /* libraryPath.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 30710597248969C3000AF77D /* libraryPath.hpp */; };
+		3071059C2489767B000AF77D /* utfString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3071059A2489767B000AF77D /* utfString.cpp */; };
+		3071059D2489767B000AF77D /* utfString.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3071059B2489767B000AF77D /* utfString.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -18,21 +24,29 @@
 			compilerSpec = com.apple.compilers.proxy.script;
 			filePatterns = "*.lua";
 			fileType = pattern.proxy;
+			inputFiles = (
+			);
 			isEditable = 1;
 			outputFiles = (
 				"$TARGET_TEMP_DIR/$(INPUT_FILE_BASE).c",
 			);
-			script = "CORONA_DIR=$SRCROOT/CoronaEnterprise/Corona\nCORONA_MAC_BIN_DIR=$CORONA_DIR/mac/bin\n\nif [ -e \"$CORONA_MAC_BIN_DIR/lua\" ]; then\n    LUA_DIR=$CORONA_MAC_BIN_DIR/lua\nelse\n    echo \"Could not find proper 32-bit lua build in: $CORONA_MAC_BIN_DIR/lua\"\n    exit 1\nfi\n\necho $CORONA_MAC_BIN_DIR/lua2c.sh $INPUT_FILE_PATH $TARGET_TEMP_DIR $CONFIGURATION\n\"$CORONA_MAC_BIN_DIR/lua2c.sh\" \"$INPUT_FILE_PATH\" \"$TARGET_TEMP_DIR\" \"$CONFIGURATION\" \"$CORONA_MAC_BIN_DIR\"";
+			script = "CORONA_DIR=$CORONA_ROOT/Corona\nCORONA_MAC_BIN_DIR=$CORONA_DIR/mac/bin\n\nif [ -e \"$CORONA_MAC_BIN_DIR/lua\" ]; then\n    LUA_DIR=$CORONA_MAC_BIN_DIR/lua\nelse\n    echo \"Could not find proper 32-bit lua build in: $CORONA_MAC_BIN_DIR/lua\"\n    exit 1\nfi\n\necho $CORONA_MAC_BIN_DIR/lua2c.sh $INPUT_FILE_PATH $TARGET_TEMP_DIR $CONFIGURATION\n\"$CORONA_MAC_BIN_DIR/lua2c.sh\" \"$INPUT_FILE_PATH\" \"$TARGET_TEMP_DIR\" \"$CONFIGURATION\" \"$CORONA_MAC_BIN_DIR\"";
 		};
 /* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
-		A49186401641DDB800A39286 /* plugin_tinyfiledialogs.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = plugin_tinyfiledialogs.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
-		CE28BCD91D7CBAA300F30E15 /* plugin.tinyfiledialogs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = plugin.tinyfiledialogs.cpp; path = ../shared/plugin.tinyfiledialogs.cpp; sourceTree = "<group>"; };
-		CE28BCDA1D7CBAA300F30E15 /* tinyfiledialogs.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tinyfiledialogs.c; path = ../shared/tinyfiledialogs.c; sourceTree = "<group>"; };
-		CE28BCDB1D7CBAA300F30E15 /* tinyfiledialogs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tinyfiledialogs.h; path = ../shared/tinyfiledialogs.h; sourceTree = "<group>"; };
-		CE353A2D1D690309000D2E95 /* libvlc.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libvlc.dylib; path = "../../../../Library/Application Support/Corona/Simulator/Plugins/plugin/lib/libvlc.dylib"; sourceTree = "<group>"; };
-		CE353A2E1D690309000D2E95 /* libvlccore.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libvlccore.dylib; path = "../../../../Library/Application Support/Corona/Simulator/Plugins/plugin/lib/libvlccore.dylib"; sourceTree = "<group>"; };
+		3035C1F52488979400E4D626 /* readerwriterqueue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = readerwriterqueue.h; path = ../shared/readerwriterqueue.h; sourceTree = "<group>"; };
+		3035C1F62488979400E4D626 /* plugin.bass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = plugin.bass.cpp; path = ../shared/plugin.bass.cpp; sourceTree = "<group>"; };
+		3035C1F82488979400E4D626 /* atomicops.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = atomicops.h; path = ../shared/atomicops.h; sourceTree = "<group>"; };
+		3035C1FC248897EA00E4D626 /* bass.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bass.h; path = ../shared/bass/headers/bass.h; sourceTree = "<group>"; };
+		3035C1FE248897FE00E4D626 /* libbass.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libbass.dylib; path = libs/libbass.dylib; sourceTree = "<group>"; };
+		30710596248969C3000AF77D /* libraryPath.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = libraryPath.cpp; sourceTree = "<group>"; };
+		30710597248969C3000AF77D /* libraryPath.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = libraryPath.hpp; sourceTree = "<group>"; };
+		3071059A2489767B000AF77D /* utfString.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = utfString.cpp; path = ../shared/utfString.cpp; sourceTree = "<group>"; };
+		3071059B2489767B000AF77D /* utfString.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = utfString.hpp; path = ../shared/utfString.hpp; sourceTree = "<group>"; };
+		A4430897164C70D800B9117B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		A49186401641DDB800A39286 /* plugin_bass.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = plugin_bass.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5815AB71EE5C6690027695F /* CoronaNative.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CoronaNative.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +54,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3035C1FF248897FE00E4D626 /* libbass.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,9 +64,14 @@
 		A4151F3316879B8200B2B43A /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				CE28BCDB1D7CBAA300F30E15 /* tinyfiledialogs.h */,
-				CE28BCDA1D7CBAA300F30E15 /* tinyfiledialogs.c */,
-				CE28BCD91D7CBAA300F30E15 /* plugin.tinyfiledialogs.cpp */,
+				3035C1FC248897EA00E4D626 /* bass.h */,
+				3035C1F82488979400E4D626 /* atomicops.h */,
+				3035C1F62488979400E4D626 /* plugin.bass.cpp */,
+				3035C1F52488979400E4D626 /* readerwriterqueue.h */,
+				30710596248969C3000AF77D /* libraryPath.cpp */,
+				30710597248969C3000AF77D /* libraryPath.hpp */,
+				3071059A2489767B000AF77D /* utfString.cpp */,
+				3071059B2489767B000AF77D /* utfString.hpp */,
 			);
 			name = Shared;
 			sourceTree = "<group>";
@@ -60,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				A4151F3316879B8200B2B43A /* Shared */,
+				F5815AB61EE5C6540027695F /* CoronaNative */,
 				A482DA8615F9B7E70084DC42 /* Frameworks */,
 				A482DA8515F9B7E70084DC42 /* Products */,
 			);
@@ -68,7 +89,7 @@
 		A482DA8515F9B7E70084DC42 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A49186401641DDB800A39286 /* plugin_tinyfiledialogs.dylib */,
+				A49186401641DDB800A39286 /* plugin_bass.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,10 +97,18 @@
 		A482DA8615F9B7E70084DC42 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				CE353A2D1D690309000D2E95 /* libvlc.dylib */,
-				CE353A2E1D690309000D2E95 /* libvlccore.dylib */,
+				3035C1FE248897FE00E4D626 /* libbass.dylib */,
+				A4430897164C70D800B9117B /* Foundation.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F5815AB61EE5C6540027695F /* CoronaNative */ = {
+			isa = PBXGroup;
+			children = (
+				F5815AB71EE5C6690027695F /* CoronaNative.xcconfig */,
+			);
+			name = CoronaNative;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -89,30 +118,35 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE28BCDE1D7CBAA300F30E15 /* tinyfiledialogs.h in Headers */,
+				3035C1FD248897EA00E4D626 /* bass.h in Headers */,
+				3035C1FB2488979400E4D626 /* atomicops.h in Headers */,
+				3071059D2489767B000AF77D /* utfString.hpp in Headers */,
+				30710599248969C3000AF77D /* libraryPath.hpp in Headers */,
+				3035C1F92488979400E4D626 /* readerwriterqueue.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		A49186331641DDB800A39286 /* plugin_tinyfiledialogs */ = {
+		A49186331641DDB800A39286 /* plugin_bass */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A491863D1641DDB800A39286 /* Build configuration list for PBXNativeTarget "plugin_tinyfiledialogs" */;
+			buildConfigurationList = A491863D1641DDB800A39286 /* Build configuration list for PBXNativeTarget "plugin_bass" */;
 			buildPhases = (
+				C22F67901EE9FA0A009D6E9D /* Corona Native */,
 				A49186341641DDB800A39286 /* Sources */,
 				A49186381641DDB800A39286 /* Frameworks */,
 				A491863A1641DDB800A39286 /* Headers */,
-				A445A9BA16AE072100A9A764 /* ShellScript */,
+				A445A9BA16AE072100A9A764 /* Copy to Simulator's Plugin Directory */,
 			);
 			buildRules = (
 				A491863C1641DDB800A39286 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
-			name = plugin_tinyfiledialogs;
+			name = plugin_bass;
 			productName = ads;
-			productReference = A49186401641DDB800A39286 /* plugin_tinyfiledialogs.dylib */;
+			productReference = A49186401641DDB800A39286 /* plugin_bass.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
 /* End PBXNativeTarget section */
@@ -121,38 +155,55 @@
 		A482DA7A15F9B7E70084DC42 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1140;
 			};
 			buildConfigurationList = A482DA7D15F9B7E70084DC42 /* Build configuration list for PBXProject "Plugin" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = A482DA7815F9B7E70084DC42;
 			productRefGroup = A482DA8515F9B7E70084DC42 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A49186331641DDB800A39286 /* plugin_tinyfiledialogs */,
+				A49186331641DDB800A39286 /* plugin_bass */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A445A9BA16AE072100A9A764 /* ShellScript */ = {
+		A445A9BA16AE072100A9A764 /* Copy to Simulator's Plugin Directory */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
+			name = "Copy to Simulator's Plugin Directory";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#\n# Checks exit value for error\n# \ncheckError() {\n    if [ $? -ne 0 ]\n    then\n        echo \"Exiting due to errors (above)\"\n        exit -1\n    fi\n}\n\nPLUGINS_DIR=~/Library/Application\\ Support/Corona/Simulator/Plugins/\n\n#mkdir -p $PLUGINS_DIR\ncheckError\n\n#cp -v $CONFIGURATION_BUILD_DIR/$FULL_PRODUCT_NAME $PLUGINS_DIR\ncheckError";
+			shellScript = "#\n# Checks exit value for error\n# \ncheckError() {\n    if [ $? -ne 0 ]\n    then\n        echo \"Exiting due to errors (above)\"\n        exit -1\n    fi\n}\n\nPLUGINS_DIR=\"${HOME}/Library/Application Support/Corona/Simulator/Plugins\"\nrm -R \"$PLUGINS_DIR\"\n\ncp -v $CONFIGURATION_BUILD_DIR/$FULL_PRODUCT_NAME \"/Users/danny/Programming/Projects/Solar2D/distribution/bass\"/.\ncheckError\n\ncd \"/Users/danny/Programming/Projects/Solar2D/distribution/bass/\"\nsh make_plugin.sh\n\n#mkdir -p \"$PLUGINS_DIR\"\n#checkError\n\n\n";
+			showEnvVarsInLog = 0;
+		};
+		C22F67901EE9FA0A009D6E9D /* Corona Native */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Corona Native";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# echo \"CORONA_ROOT: ${CORONA_ROOT}\"\nif [ ! -d \"${CORONA_ROOT}\" ]\nthen\necho \"error: Corona Native has not been setup.  Run 'Native/SetupCoronaNative.app' in your Corona install to set it up\" >&2\n\nexit 1\nelse\necho \"Building with Corona Native from $(readlink \"${CORONA_ROOT}\")\"\nfi";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -162,8 +213,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE28BCDC1D7CBAA300F30E15 /* plugin.tinyfiledialogs.cpp in Sources */,
-				CE28BCDD1D7CBAA300F30E15 /* tinyfiledialogs.c in Sources */,
+				3071059C2489767B000AF77D /* utfString.cpp in Sources */,
+				3035C1FA2488979400E4D626 /* plugin.bass.cpp in Sources */,
+				30710598248969C3000AF77D /* libraryPath.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,8 +224,12 @@
 /* Begin XCBuildConfiguration section */
 		A482DA9715F9B7E70084DC42 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F5815AB71EE5C6690027695F /* CoronaNative.xcconfig */;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
@@ -199,11 +255,6 @@
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					CORONA_DEBUG,
-					"$(inherited)",
-				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -213,19 +264,18 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"-undefined",
-					dynamic_lookup,
-				);
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "${SRCROOT}/CoronaEnterprise/Corona/shared/include/Corona ${SRCROOT}/CoronaEnterprise/Corona/shared/include/lua ${SRCROOT}/CoronaEnterprise/Corona/ios/include/Corona";
 			};
 			name = Debug;
 		};
 		A482DA9815F9B7E70084DC42 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F5815AB71EE5C6690027695F /* CoronaNative.xcconfig */;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
@@ -256,12 +306,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OTHER_LDFLAGS = (
-					"-undefined",
-					dynamic_lookup,
-				);
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "${SRCROOT}/CoronaEnterprise/Corona/shared/include/Corona ${SRCROOT}/CoronaEnterprise/Corona/shared/include/lua ${SRCROOT}/CoronaEnterprise/Corona/ios/include/Corona";
 			};
 			name = Release;
 		};
@@ -269,19 +314,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				COMBINE_HIDPI_IMAGES = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				INSTALL_PATH = "@rpath";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)",
-					"$(USER_LIBRARY_DIR)/Application",
-					Support/Corona/Simulator/Plugins/plugin/lib,
+					"$(PROJECT_DIR)/libs",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "${SRCROOT}/Native/Corona/shared/include/Corona ${SRCROOT}/Native/Corona/shared/include/lua ${SRCROOT}/Native/Corona/ios/include/Corona ../shared/include";
 			};
 			name = Debug;
 		};
@@ -289,21 +330,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
-				COMBINE_HIDPI_IMAGES = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
-				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				INSTALL_PATH = "@rpath";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)",
-					"$(USER_LIBRARY_DIR)/Application",
-					Support/Corona/Simulator/Plugins/plugin/lib,
+					"$(PROJECT_DIR)/libs",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=*]" = "\"~/Library/Application Support/Corona/Simulator/Plugins/plugin/lib\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "${SRCROOT}/Native/Corona/shared/include/Corona ${SRCROOT}/Native/Corona/shared/include/lua ${SRCROOT}/Native/Corona/ios/include/Corona ../shared/include";
 			};
 			name = Release;
 		};
@@ -319,7 +354,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A491863D1641DDB800A39286 /* Build configuration list for PBXNativeTarget "plugin_tinyfiledialogs" */ = {
+		A491863D1641DDB800A39286 /* Build configuration list for PBXNativeTarget "plugin_bass" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A491863E1641DDB800A39286 /* Debug */,

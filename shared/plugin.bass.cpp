@@ -4,7 +4,9 @@
 #include "CoronaEvent.h"
 #include "CoronaLua.h"
 #include "CoronaLibrary.h"
+#ifndef _WIN32
 #include "libraryPath.hpp"
+#endif
 #include "utfString.hpp"
 #include "bass.h"
 #include "readerwriterqueue.h"
@@ -26,25 +28,25 @@ namespace Corona
 
 	class BassLibrary
 	{
-	public:
+		public:
 		typedef BassLibrary Self;
 
-	public:
+		public:
 		static const char kName[];
 		static const char kEventName[];
 		static EventData eventData;
 		static moodycamel::ReaderWriterQueue<EventData> data;
 
-	public:
+		public:
 		static int Open(lua_State* L);
 		static int Finalizer(lua_State* L);
 		static Self* ToLibrary(lua_State* L);
 
-	protected:
+		protected:
 		BassLibrary();
-		bool Initialize(lua_State *L, void* platformContext);
+		bool Initialize(lua_State* L, void* platformContext);
 
-	public:
+		public:
 		static int dispose(lua_State* L);
 		static int fadeIn(lua_State* L);
 		static int fadeOut(lua_State* L);
@@ -221,41 +223,41 @@ namespace Corona
 	{
 	}
 
-	bool BassLibrary::Initialize(lua_State *L, void* platformContext)
+	bool BassLibrary::Initialize(lua_State* L, void* platformContext)
 	{
 		if (HIWORD(BASS_GetVersion()) != BASSVERSION)
-        {
-            printf("ERROR: plugin.bass - An incorrect version of BASS.DLL was loaded\n");
-            return 0;
-        }
+		{
+			printf("ERROR: plugin.bass - An incorrect version of BASS.DLL was loaded\n");
+			return 0;
+		}
 
-        BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
-        BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
-        BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1); // enable playlist processing
-        BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 0); // disable BASS_StreamCreateURL pre-buffering
-        BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, 0);
+		BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
+		BASS_SetConfig(BASS_CONFIG_UNICODE, TRUE);
+		BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST, 1); // enable playlist processing
+		BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 0); // disable BASS_StreamCreateURL pre-buffering
+		BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, 0);
 
-        if (!BASS_Init(1, 44100, 0, 0, NULL))
-        {
-            printf("ERROR: plugin.bass - Can't initialize device\n");
-        }
-        
-        #ifdef _WIN32
-            wma = BASS_PluginLoad("basswma.dll", 0);
-            ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
-            ape = BASS_PluginLoad("bass_ape.dll", 0);
-            mpc = BASS_PluginLoad("bass_mpc.dll", 0);
-            spx = BASS_PluginLoad("bass_spx.dll", 0);
-            flac = BASS_PluginLoad("bassflac.dll", 0);
-            opus = BASS_PluginLoad("bassopus.dll", 0);
-        #else
-            ac3 = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ac3.dylib").c_str(), 0);
-            ape = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ape.dylib").c_str(), 0);
-            mpc = BASS_PluginLoad(LibraryPath::Get(L, "libbass_mpc.dylib").c_str(), 0);
-            spx = BASS_PluginLoad(LibraryPath::Get(L, "libbass_spx.dylib").c_str(), 0);
-            flac = BASS_PluginLoad(LibraryPath::Get(L, "libbassflac.dylib").c_str(), 0);
-            opus = BASS_PluginLoad(LibraryPath::Get(L, "libbassopus.dylib").c_str(), 0);
-        #endif
+		if (!BASS_Init(1, 44100, 0, 0, NULL))
+		{
+			printf("ERROR: plugin.bass - Can't initialize device\n");
+		}
+
+		#ifdef _WIN32
+		wma = BASS_PluginLoad("basswma.dll", 0);
+		ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
+		ape = BASS_PluginLoad("bass_ape.dll", 0);
+		mpc = BASS_PluginLoad("bass_mpc.dll", 0);
+		spx = BASS_PluginLoad("bass_spx.dll", 0);
+		flac = BASS_PluginLoad("bassflac.dll", 0);
+		opus = BASS_PluginLoad("bassopus.dll", 0);
+		#else
+		ac3 = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ac3.dylib").c_str(), 0);
+		ape = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ape.dylib").c_str(), 0);
+		mpc = BASS_PluginLoad(LibraryPath::Get(L, "libbass_mpc.dylib").c_str(), 0);
+		spx = BASS_PluginLoad(LibraryPath::Get(L, "libbass_spx.dylib").c_str(), 0);
+		flac = BASS_PluginLoad(LibraryPath::Get(L, "libbassflac.dylib").c_str(), 0);
+		opus = BASS_PluginLoad(LibraryPath::Get(L, "libbassopus.dylib").c_str(), 0);
+		#endif
 
 		return 1;
 	}
@@ -513,23 +515,23 @@ namespace Corona
 			return 1;
 		}
 
-        fullPath.append(filePath);
-        
-        #ifdef _WIN32
-            fullPath.append("\\");
-        #else
-            fullPath.append("/");
-        #endif
+		fullPath.append(filePath);
+
+		#ifdef _WIN32
+		fullPath.append("\\");
+		#else
+		fullPath.append("/");
+		#endif
 
 		fullPath.append(fileName);
-        
-        #ifdef _WIN32
-            wstring utf16Path = UTFString::Convert(fullPath);
-        #else
-            string utf16Path = UTFString::Convert(fullPath);
-        #endif
-        
-        if ((channel = BASS_StreamCreateFile(FALSE, utf16Path.c_str(), 0, 0, BASS_ASYNCFILE)))
+
+		#ifdef _WIN32
+		wstring utf16Path = UTFString::Convert(fullPath);
+		#else
+		string utf16Path = UTFString::Convert(fullPath);
+		#endif
+
+		if ((channel = BASS_StreamCreateFile(FALSE, utf16Path.c_str(), 0, 0, BASS_ASYNCFILE)))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
@@ -561,15 +563,15 @@ namespace Corona
 			return 1;
 		}
 
-        fullUrl.append(url);
-        
-        #ifdef _WIN32
-            wstring utf16Url = UTFString::Convert(fullPath);
-        #else
-            string utf16Url = UTFString::Convert(fullUrl);
-        #endif
-        
-        if ((channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0)))
+		fullUrl.append(url);
+
+		#ifdef _WIN32
+		wstring utf16Url = UTFString::Convert(fullUrl);
+		#else
+		string utf16Url = UTFString::Convert(fullUrl);
+		#endif
+
+		if ((channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0)))
 		{
 			lua_pushnumber(L, channel);
 			return 1;
@@ -586,11 +588,11 @@ namespace Corona
 
 	int BassLibrary::loadChipTunesPlugin(lua_State* L)
 	{
-        #ifdef _WIN32
-            zxtune = BASS_PluginLoad("basszxtune.dll", 0);
-        #else
-            zxtune = BASS_PluginLoad(LibraryPath::Get(L, "libbasszxtune.dylib").c_str(), 0);
-        #endif
+		#ifdef _WIN32
+		zxtune = BASS_PluginLoad("basszxtune.dll", 0);
+		#else
+		zxtune = BASS_PluginLoad(LibraryPath::Get(L, "libbasszxtune.dylib").c_str(), 0);
+		#endif
 
 		return 0;
 	}

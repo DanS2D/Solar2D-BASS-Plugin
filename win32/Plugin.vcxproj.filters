@@ -4,8 +4,10 @@
     <ClInclude Include="..\shared\atomicops.h" />
     <ClInclude Include="..\shared\readerwriterqueue.h" />
     <ClInclude Include="..\shared\bass\headers\bass.h" />
+    <ClInclude Include="..\shared\utfString.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\shared\plugin.bass.cpp" />
+    <ClCompile Include="..\shared\utfString.cpp" />
   </ItemGroup>
 </Project>

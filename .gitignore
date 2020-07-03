@@ -368,3 +368,8 @@ mac/Plugin.xcodeproj/project.xcworkspace
 mac/Plugin.xcodeproj/xcuserdata
 mac/Plugin.xcodeproj/project.xcworkspace
 mac/Plugin.xcodeproj
+.codelite
+linux/compile_flags.txt
+linux/build-**
+linux/*.mk
+linux/Makefile

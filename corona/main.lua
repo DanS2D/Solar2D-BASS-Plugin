@@ -57,6 +57,7 @@ local loadButton =
 	{
 		label = "Load",
 		onPress = function(event)
+			print("path to loaded file: ", resourcePath .. "/" .. musicSamples[currentAudioIndex].fileName)
 			musicSamples[currentAudioIndex].channel = bass.load(musicSamples[currentAudioIndex].fileName, resourcePath)
 			local currentVolume = bass.getVolume()
 			--bass.getVolume({channel = musicSamples[currentAudioIndex].channel})

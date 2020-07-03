@@ -10,6 +10,9 @@
 #include "utfString.hpp"
 #include "bass.h"
 #include "readerwriterqueue.h"
+#ifdef __linux__
+#include <dlfcn.h>
+#endif
 
 // ----------------------------------------------------------------------------
 using namespace std;
@@ -28,25 +31,25 @@ namespace Corona
 
 	class BassLibrary
 	{
-		public:
+	public:
 		typedef BassLibrary Self;
 
-		public:
+	public:
 		static const char kName[];
 		static const char kEventName[];
 		static EventData eventData;
 		static moodycamel::ReaderWriterQueue<EventData> data;
 
-		public:
+	public:
 		static int Open(lua_State* L);
 		static int Finalizer(lua_State* L);
 		static Self* ToLibrary(lua_State* L);
 
-		protected:
+	protected:
 		BassLibrary();
 		bool Initialize(lua_State* L, void* platformContext);
 
-		public:
+	public:
 		static int dispose(lua_State* L);
 		static int fadeIn(lua_State* L);
 		static int fadeOut(lua_State* L);
@@ -225,6 +228,10 @@ namespace Corona
 
 	bool BassLibrary::Initialize(lua_State* L, void* platformContext)
 	{
+#ifdef __linux__
+		dlopen("libbass.so", RTLD_NOW | RTLD_GLOBAL);
+#endif
+
 		if (HIWORD(BASS_GetVersion()) != BASSVERSION)
 		{
 			printf("ERROR: plugin.bass - An incorrect version of BASS.DLL was loaded\n");
@@ -242,7 +249,7 @@ namespace Corona
 			printf("ERROR: plugin.bass - Can't initialize device\n");
 		}
 
-		#ifdef _WIN32
+#ifdef _WIN32
 		wma = BASS_PluginLoad("basswma.dll", 0);
 		ac3 = BASS_PluginLoad("bass_ac3.dll", 0);
 		ape = BASS_PluginLoad("bass_ape.dll", 0);
@@ -250,14 +257,21 @@ namespace Corona
 		spx = BASS_PluginLoad("bass_spx.dll", 0);
 		flac = BASS_PluginLoad("bassflac.dll", 0);
 		opus = BASS_PluginLoad("bassopus.dll", 0);
-		#else
+#elif __linux__
+		ac3 = BASS_PluginLoad("libbass_ac3.so", 0);
+		ape = BASS_PluginLoad("libbass_ape.so", 0);
+		mpc = BASS_PluginLoad("libbass_mpc.so", 0);
+		spx = BASS_PluginLoad("libbass_spx.so", 0);
+		flac = BASS_PluginLoad("libbassflac.so", 0);
+		opus = BASS_PluginLoad("libbassopus.so", 0);
+#else
 		ac3 = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ac3.dylib").c_str(), 0);
 		ape = BASS_PluginLoad(LibraryPath::Get(L, "libbass_ape.dylib").c_str(), 0);
 		mpc = BASS_PluginLoad(LibraryPath::Get(L, "libbass_mpc.dylib").c_str(), 0);
 		spx = BASS_PluginLoad(LibraryPath::Get(L, "libbass_spx.dylib").c_str(), 0);
 		flac = BASS_PluginLoad(LibraryPath::Get(L, "libbassflac.dylib").c_str(), 0);
 		opus = BASS_PluginLoad(LibraryPath::Get(L, "libbassopus.dylib").c_str(), 0);
-		#endif
+#endif
 
 		return 1;
 	}
@@ -297,7 +311,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "%s, got: %s", errorMessage, lua_typename(L, index));
+			CoronaLuaError(L, "%s, got: %s\n", errorMessage, lua_typename(L, index));
 			lua_pushnil(L);
 		}
 
@@ -328,7 +342,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.fadeIn() time (number) expected, got: ", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.fadeIn() time (number) expected, got: %s\n", lua_typename(L, 2));
 		}
 
 		return 0;
@@ -347,7 +361,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.fadeOut() time (number) expected, got: ", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.fadeOut() time (number) expected, got: %s\n", lua_typename(L, 2));
 		}
 
 		return 0;
@@ -499,7 +513,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.load() filename (string) expected, got: %s", lua_typename(L, 1));
+			CoronaLuaError(L, "bass.load() filename (string) expected, got: %s\n", lua_typename(L, 1));
 			lua_pushnil(L);
 			return 1;
 		}
@@ -510,26 +524,26 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.load() filePath (string) expected, got: %s", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.load() filePath (string) expected, got: %s\n", lua_typename(L, 2));
 			lua_pushnil(L);
 			return 1;
 		}
 
 		fullPath.append(filePath);
 
-		#ifdef _WIN32
+#ifdef _WIN32
 		fullPath.append("\\");
-		#else
+#else
 		fullPath.append("/");
-		#endif
+#endif
 
 		fullPath.append(fileName);
 
-		#ifdef _WIN32
+#ifdef _WIN32
 		wstring utf16Path = UTFString::Convert(fullPath);
-		#else
+#else
 		string utf16Path = UTFString::Convert(fullPath);
-		#endif
+#endif
 
 		if ((channel = BASS_StreamCreateFile(FALSE, utf16Path.c_str(), 0, 0, BASS_ASYNCFILE)))
 		{
@@ -538,7 +552,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaWarning(L, "bass.load() couldn't create stream for file: %s", utf16Path.c_str());
+			CoronaLuaWarning(L, "bass.load() couldn't create stream for file: %s\n", utf16Path.c_str());
 			lua_pushnil(L);
 			return 1;
 		}
@@ -558,18 +572,18 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.loadUrl() url (string) expected, got: %s", lua_typename(L, 1));
+			CoronaLuaError(L, "bass.loadUrl() url (string) expected, got: %s\n", lua_typename(L, 1));
 			lua_pushnil(L);
 			return 1;
 		}
 
 		fullUrl.append(url);
 
-		#ifdef _WIN32
+#ifdef _WIN32
 		wstring utf16Url = UTFString::Convert(fullUrl);
-		#else
+#else
 		string utf16Url = UTFString::Convert(fullUrl);
-		#endif
+#endif
 
 		if ((channel = BASS_StreamCreateURL(utf16Url.c_str(), 0, BASS_STREAM_BLOCK | BASS_STREAM_AUTOFREE, 0, 0)))
 		{
@@ -578,7 +592,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaWarning(L, "bass.loadUrl() couldn't create stream for url: %ls", utf16Url.c_str());
+			CoronaLuaWarning(L, "bass.loadUrl() couldn't create stream for url: %ls\n", utf16Url.c_str());
 			lua_pushnil(L);
 			return 1;
 		}
@@ -588,11 +602,13 @@ namespace Corona
 
 	int BassLibrary::loadChipTunesPlugin(lua_State* L)
 	{
-		#ifdef _WIN32
+#ifdef _WIN32
 		zxtune = BASS_PluginLoad("basszxtune.dll", 0);
-		#else
+#elif __linux__
+		zxtune = BASS_PluginLoad("libbasszxtune.so", 0);
+#else
 		zxtune = BASS_PluginLoad(LibraryPath::Get(L, "libbasszxtune.dylib").c_str(), 0);
-		#endif
+#endif
 
 		return 0;
 	}
@@ -612,7 +628,7 @@ namespace Corona
 		// play the stream (continue from current position)
 		if (!BASS_ChannelPlay(channel, FALSE))
 		{
-			CoronaLuaWarning(L, "bass.play() couldn't play audio for channel: %lu", channel);
+			CoronaLuaWarning(L, "bass.play() couldn't play audio for channel: %lu\n", channel);
 			lua_pushnil(L);
 			return 0;
 		}
@@ -657,7 +673,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.seek() time (number) expected, got: ", lua_typename(L, 2));
+			CoronaLuaError(L, "bass.seek() time (number) expected, got: %s\n", lua_typename(L, 2));
 		}
 
 		return 0;
@@ -679,7 +695,7 @@ namespace Corona
 		}
 		else
 		{
-			CoronaLuaError(L, "bass.setDevice() device index (number) expected, got: ", lua_typename(L, 1));
+			CoronaLuaError(L, "bass.setDevice() device index (number) expected, got: %s\n", lua_typename(L, 1));
 		}
 
 		return 0;
